@@ -62,3 +62,10 @@ system:
   max_recording_time: 7200 # in seconds (2 hours)
   auto_save_interval: 300 # in seconds (5 minutes)
   debug_mode: false
+
+# Hotkey Settings
+hotkeys:
+  start_recording: "ctrl+shift+r"
+  stop_recording: "ctrl+shift+s"
+  pause_recording: "ctrl+shift+p"
+  quit: "ctrl+shift+q"

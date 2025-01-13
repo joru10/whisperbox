@@ -4,7 +4,7 @@ version = "1.0.0"
 description = "Transcribe meetings right in your terminal"
 authors = ["Ty Fiero <tyfierodev@gmail.com>", "Mike Bird <tooluseai@gmail.com>"]
 readme = "README.md"
-packages = [{include = "hacker_transcriber", from = "src"}]
+packages = [{include = "src"}]
 license = "MIT"
 classifiers = [
     "Programming Language :: Python :: 3",
@@ -18,6 +18,7 @@ pydub = "^0.25.1"
 pyaudio = "^0.2.13"
 rich = "^13.3.0"
 pyyaml = "^6.0"
+pynput = "^1.7.6"
 
 [tool.poetry.scripts]
-transcribe = "main.transcribe:main"
+transcribe = "main:main"

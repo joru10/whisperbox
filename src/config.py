@@ -96,6 +96,11 @@ class Config:
         """Access system settings."""
         return ConfigSection(self._config.get('system', {}))
 
+    @property
+    def hotkeys(self):
+        """Access hotkey settings."""
+        return ConfigSection(self._config.get('hotkeys', {}))
+
 class ConfigSection:
     """Helper class to provide dot notation access to config sections."""
     def __init__(self, section_dict: Dict[str, Any]):
