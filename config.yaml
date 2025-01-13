@@ -1,0 +1,64 @@
+# API Settings
+api:
+  openai:
+    api_key: ""
+    organization: "" # optional
+  anthropic:
+    api_key: ""
+  groq:
+    api_key: ""
+
+# Audio Recording Settings
+audio:
+  sample_rate: 44100
+  channels: 1
+  chunk_size: 1024
+  format: "wav"
+
+# Transcription Settings
+transcription:
+  language: "en-US"
+  model: "base" # options: base, small, medium, large
+  enable_speaker_diarization: true
+  min_speech_probability: 0.5
+  whisper:
+    model: "tiny.en" # default model
+    base_url: "https://huggingface.co/Mozilla/whisperfile/resolve/main/"
+    gpu_enabled: false
+    whisperfile_path: "~/.whisperfiles"
+
+# Output Settings
+output:
+  save_audio: true
+  audio_directory: "recordings/"
+  transcript_directory: "transcripts/"
+  timestamp_format: "%Y-%m-%d_%H-%M-%S"
+  file_format: "txt" # options: txt, srt, vtt
+
+# Display Settings
+display:
+  show_timestamps: true
+  live_transcription: true
+  colors:
+    speaker1: "blue"
+    speaker2: "green"
+    system: "yellow"
+    error: "red"
+    recording: "yellow"
+    success: "green"
+
+# AI Settings
+ai:
+  default_model: "llama3.1"
+  prompts:
+    summary: "Summarize the following text. Just provide the summary, no preamble. Text:\n\n{text}"
+    sentiment: "Analyze the sentiment of the following text and respond with ONLY ONE WORD - either 'positive', 'neutral', or 'negative':\n\n{text}"
+    intent: "Detect the intent in the following text. Respond with ONLY 2-4 words. Do not return any preamble, only the intent. Text: \n\n{text}"
+    topics: "Please identify the main topics in the following text. Return the topics as a comma-separated list, with no preamble or additional text. Text:\n\n{text}"
+
+# System Settings
+system:
+  temp_directory: "tmp/"
+  max_recording_time: 7200 # in seconds (2 hours)
+  auto_save_interval: 300 # in seconds (5 minutes)
+  debug_mode: false
