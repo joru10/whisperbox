@@ -1,71 +1,70 @@
-# API Settings
-api:
-  openai:
-    api_key: ""
-    organization: "" # optional
-  anthropic:
-    api_key: ""
-  groq:
-    api_key: ""
+ai:
+  default_model: llama3.1
+  prompts:
+    intent: "Detect the intent in the following text. Respond with ONLY 2-4 words.\
+      \ Do not return any preamble, only the intent. Text: \n\n{text}"
+    sentiment: 'Analyze the sentiment of the following text and respond with ONLY
+      ONE WORD - either ''positive'', ''neutral'', or ''negative'':
 
-# Audio Recording Settings
+
+      {text}'
+    summary: 'Summarize the following text. Just provide the summary, no preamble.
+      Text:
+
+
+      {text}'
+    topics: 'Please identify the main topics in the following text. Return the topics
+      as a comma-separated list, with no preamble or additional text. Text:
+
+
+      {text}'
+api:
+  anthropic:
+    api_key: ''
+  groq:
+    api_key: ''
+  openai:
+    api_key: ''
+    organization: ''
 audio:
-  sample_rate: 44100
+  capture_system_audio: true
   channels: 1
   chunk_size: 1024
-  format: "wav"
-
-# Transcription Settings
-transcription:
-  language: "en-US"
-  model: "base" # options: base, small, medium, large
-  enable_speaker_diarization: true
-  min_speech_probability: 0.5
-  whisper:
-    model: "tiny.en" # default model
-    base_url: "https://huggingface.co/Mozilla/whisperfile/resolve/main/"
-    gpu_enabled: false
-    whisperfile_path: "~/.whisperfiles"
-
-# Output Settings
-output:
-  save_audio: true
-  audio_directory: "recordings/"
-  transcript_directory: "transcripts/"
-  timestamp_format: "%Y-%m-%d_%H-%M-%S"
-  file_format: "txt" # options: txt, srt, vtt
-
-# Display Settings
+  format: wav
+  sample_rate: 44100
 display:
-  show_timestamps: true
-  live_transcription: true
   colors:
-    speaker1: "blue"
-    speaker2: "green"
-    system: "yellow"
-    error: "red"
-    recording: "yellow"
-    success: "green"
-
-# AI Settings
-ai:
-  default_model: "llama3.1"
-  prompts:
-    summary: "Summarize the following text. Just provide the summary, no preamble. Text:\n\n{text}"
-    sentiment: "Analyze the sentiment of the following text and respond with ONLY ONE WORD - either 'positive', 'neutral', or 'negative':\n\n{text}"
-    intent: "Detect the intent in the following text. Respond with ONLY 2-4 words. Do not return any preamble, only the intent. Text: \n\n{text}"
-    topics: "Please identify the main topics in the following text. Return the topics as a comma-separated list, with no preamble or additional text. Text:\n\n{text}"
-
-# System Settings
-system:
-  temp_directory: "tmp/"
-  max_recording_time: 7200 # in seconds (2 hours)
-  auto_save_interval: 300 # in seconds (5 minutes)
-  debug_mode: false
-
-# Hotkey Settings
+    error: red
+    recording: yellow
+    speaker1: blue
+    speaker2: green
+    success: green
+    system: yellow
+  live_transcription: true
+  show_timestamps: true
 hotkeys:
-  start_recording: "ctrl+shift+r"
-  stop_recording: "ctrl+shift+s"
-  pause_recording: "ctrl+shift+p"
-  quit: "ctrl+shift+q"
+  pause_recording: ctrl+shift+p
+  quit: ctrl+shift+q
+  start_recording: ctrl+r
+  stop_recording: ctrl+s
+output:
+  audio_directory: recordings/
+  file_format: txt
+  save_audio: true
+  timestamp_format: '%Y-%m-%d_%H-%M-%S'
+  transcript_directory: transcripts/
+system:
+  auto_save_interval: 300
+  debug_mode: false
+  max_recording_time: 7200
+  temp_directory: tmp/
+transcription:
+  enable_speaker_diarization: true
+  language: en-US
+  min_speech_probability: 0.5
+  model: base
+  whisper:
+    base_url: https://huggingface.co/Mozilla/whisperfile/resolve/main/
+    gpu_enabled: false
+    model: tiny.en
+    whisperfile_path: ~/.whisperfiles

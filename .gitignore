@@ -1,3 +1,6 @@
+recordings/
+transcripts/
+
 # Python
 __pycache__/
 *.py[cod]

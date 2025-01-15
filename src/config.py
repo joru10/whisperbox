@@ -108,8 +108,11 @@ class ConfigSection:
         
     def __getattr__(self, key: str) -> Any:
         if key not in self._section:
-            raise AttributeError(f"Configuration key '{key}' not found")
-        return self._section[key]
+            return None  # Return None instead of raising AttributeError
+        value = self._section[key]
+        if isinstance(value, dict):
+            return ConfigSection(value)  # Recursively wrap nested dictionaries
+        return value
     
     def get(self, key: str, default: Any = None) -> Any:
         """Get a configuration value with a default."""

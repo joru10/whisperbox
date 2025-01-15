@@ -34,7 +34,8 @@ class HotkeyManager:
             self.logger.error(f"No hotkey configured for action: {action}")
             return
 
-        self.handlers[self._parse_hotkey(hotkey)] = handler
+        hotkey_combo = self._parse_hotkey(hotkey)
+        self.handlers[str(hotkey_combo)] = handler  # Convert frozenset to string
         self.logger.debug(f"Registered hotkey {hotkey} for action {action}")
 
     def _on_press(self, key):
@@ -44,17 +45,16 @@ class HotkeyManager:
             key_str = key.char if hasattr(key, 'char') else key.name
             self._current_keys.add(key_str.lower())
             
-            # Check if any registered hotkey combination is pressed
-            for hotkey_combo, handler in self.handlers.items():
-                if hotkey_combo.issubset(self._current_keys):
-                    try:
-                        handler()
-                    except Exception as e:
-                        self.logger.error(f"Error executing handler: {e}")
+            current_combo = str(frozenset(self._current_keys))  # Convert to string
+            if current_combo in self.handlers:
+                try:
+                    self.handlers[current_combo]()
+                except Exception as e:
+                    self.logger.error(f"Error executing handler: {e}")
         except AttributeError:
             pass
 
-    def _on_release(self, key):
+    def _on_release(self, key) -> None:
         """Handle key release events."""
         try:
             # Convert key to string representation
@@ -65,7 +65,6 @@ class HotkeyManager:
             quit_combo = self._parse_hotkey(self.config.hotkeys.quit)
             if quit_combo.issubset(self._current_keys):
                 self.stop()
-                return False
         except AttributeError:
             pass
 
@@ -82,4 +81,5 @@ class HotkeyManager:
         """Stop listening for hotkeys and clean up."""
         if self._listener:
             self._listener.stop()
+            self._stop_event.set()  # Set the stop event
         self.logger.info("Hotkey manager stopped")
