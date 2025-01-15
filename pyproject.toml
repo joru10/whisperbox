@@ -12,6 +12,8 @@ classifiers = [
     "Operating System :: OS Independent",
 ]
 
+
+
 [tool.poetry.dependencies]
 python = "^3.10"
 pydub = "^0.25.1"
@@ -19,6 +21,11 @@ pyaudio = "^0.2.13"
 rich = "^13.3.0"
 pyyaml = "^6.0"
 pynput = "^1.7.6"
+anthropic = "^0.43.0"
+openai = "^1.59.7"
+ollama = "^0.4.6"
+groq = "^0.15.0"
 
 [tool.poetry.scripts]
 transcribe = "main:main"
+setup = "src.setup:setup"

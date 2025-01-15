@@ -14,10 +14,10 @@ from rich.table import Table
 from rich import box
 import select
 import sys
-from ai_service import AIService
+from .ai_service import AIService
 from urllib.request import urlretrieve
-from config import config
-from audio import record_audio, convert_to_wav
+from .config import config
+from .audio import AudioRecorder, convert_to_wav
 
 console = Console()
 
@@ -61,39 +61,69 @@ def get_whisper_model_path(model_name, whisperfile_path, verbose):
     # Expand user path if necessary
     whisperfile_path = os.path.expanduser(whisperfile_path)
     model_path = os.path.join(whisperfile_path, full_model_name)
-    if verbose:
-        console.print(f"[yellow]Constructed model path: {model_path}[/yellow]")
+    
+    console.print(f"[yellow]Looking for Whisper model at: {model_path}[/yellow]")
+    
     if not os.path.exists(model_path):
         console.print(f"[yellow]Whisper model {full_model_name} not found.[/yellow]")
-        if input("Do you want to install it? (y/n): ").lower() == "y":
+        console.print(f"[yellow]Would you like to download it from {WHISPER_BASE_URL}?[/yellow]")
+        if input("Download model? (y/n): ").lower() == "y":
             install_whisper_model(model_name, whisperfile_path)
         else:
-            raise FileNotFoundError(f"Whisper model {full_model_name} not found.")
+            raise FileNotFoundError(f"Whisper model {full_model_name} not found and download was declined.")
+    else:
+        console.print(f"[green]Found Whisper model at: {model_path}[/green]")
+        
+    # Check if the file is executable
+    if not os.access(model_path, os.X_OK):
+        console.print("[yellow]Making model file executable...[/yellow]")
+        os.chmod(model_path, 0o755)
+        
     return model_path
 
 def transcribe_audio(model_name, whisperfile_path, audio_file, verbose):
-    model_path = get_whisper_model_path(model_name, whisperfile_path, verbose)
-    gpu_flag = "--gpu auto" if config.transcription.whisper.gpu_enabled else ""
-    command = f"{model_path} -f {audio_file} {gpu_flag}"
+    try:
+        model_path = get_whisper_model_path(model_name, whisperfile_path, verbose)
+        gpu_flag = "--gpu auto" if config.transcription.whisper.gpu_enabled else ""
+        command = f"{model_path} -f {audio_file} {gpu_flag}"
 
-    if verbose:
-        console.print(f"[yellow]Attempting to run command: {command}[/yellow]")
+        if verbose:
+            console.print(f"[yellow]Attempting to run command: {command}[/yellow]")
 
-    process = subprocess.Popen(
-        command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True
-    )
+        # Check if file exists and is readable
+        if not os.path.exists(audio_file):
+            raise FileNotFoundError(f"Audio file not found: {audio_file}")
+            
+        console.print(f"[yellow]Running transcription command...[/yellow]")
+        process = subprocess.Popen(
+            command, 
+            shell=True, 
+            stdout=subprocess.PIPE, 
+            stderr=subprocess.PIPE, 
+            text=True
+        )
 
-    stdout, stderr = process.communicate()
+        stdout, stderr = process.communicate()
 
-    if process.returncode != 0:
-        console.print(f"[red]Command failed with return code {process.returncode}[/red]")
-        console.print(f"[red]Error output: {stderr}[/red]")
-        raise Exception(f"Transcription failed: {stderr}")
+        if process.returncode != 0:
+            console.print(f"[red]Command failed with return code {process.returncode}[/red]")
+            console.print(f"[red]Error output: {stderr}[/red]")
+            raise Exception(f"Transcription failed: {stderr}")
 
-    if verbose:
-        console.print(f"[green]Transcription output:[/green]\n{stdout}")
+        if not stdout.strip():
+            console.print("[red]Warning: Transcription produced empty output[/red]")
+            return None
 
-    return stdout
+        if verbose:
+            console.print(f"[green]Transcription output:[/green]\n{stdout}")
+
+        return stdout.strip()
+
+    except Exception as e:
+        console.print(f"[red]Error in transcribe_audio: {str(e)}[/red]")
+        import traceback
+        console.print(f"[red]{traceback.format_exc()}[/red]")
+        raise
 
 def summarize(text):
     ai_service = AIService()
@@ -194,20 +224,28 @@ class Shallowgram:
         self.ai_service = AIService()
 
     def transcribe(self, audio_file, model=DEFAULT_WHISPER_MODEL, full_analysis=False):
+        console.print(f"[yellow]Starting transcription of {audio_file}[/yellow]")
         if not os.path.exists(audio_file):
             raise FileNotFoundError(f"Audio file not found: {audio_file}")
 
         # Convert to wav if needed
         file_ext = os.path.splitext(audio_file)[1].lower()
         if file_ext != ".wav":
+            console.print("[yellow]Converting audio to WAV format...[/yellow]")
             wav_file = "temp_audio.wav"
             convert_to_wav(audio_file, wav_file)
             audio_file = wav_file
 
         try:
-            transcript = transcribe_audio(model, self.whisperfile_path, audio_file, False)
+            console.print("[yellow]Running Whisper transcription...[/yellow]")
+            transcript = transcribe_audio(model, self.whisperfile_path, audio_file, True)  # Set verbose=True
+            
+            if not transcript:
+                console.print("[red]Whisper returned empty transcript[/red]")
+                return None
 
             if full_analysis:
+                console.print("[yellow]Performing AI analysis...[/yellow]")
                 summary = summarize(transcript)
                 sentiment = analyze_sentiment(transcript)
                 intent = detect_intent(transcript)
@@ -223,6 +261,9 @@ class Shallowgram:
             
             return {'text': transcript}
 
+        except Exception as e:
+            console.print(f"[red]Error in transcription: {str(e)}[/red]")
+            raise
         finally:
             # Cleanup temporary file
             if file_ext != ".wav" and os.path.exists("temp_audio.wav"):
