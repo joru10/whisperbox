@@ -3,6 +3,7 @@ from src.hotkeys import HotkeyManager
 from src.recording_manager import RecordingManager
 from src.ui import TranscriberUI
 from src.process import process_transcript, get_available_processors
+from src.ai_service import AIService
 from rich.console import Console
 import logging
 import argparse
@@ -13,7 +14,7 @@ from threading import Thread
 console = Console()
 
 
-def main(process_flag=False):
+def main(process_flag=False, ai_provider=None):
     # Setup logging
     logging.basicConfig(
         level=logging.INFO if not config.system.debug_mode else logging.DEBUG
@@ -24,6 +25,15 @@ def main(process_flag=False):
     recording_manager = RecordingManager()
     hotkey_manager = HotkeyManager(config)
     ui = TranscriberUI()
+
+    # Initialize AI service if provider specified
+    if ai_provider:
+        try:
+            ai_service = AIService(service_type=ai_provider)
+            logger.info(f"Using AI provider: {ai_provider}")
+        except ValueError as e:
+            logger.error(f"Error initializing AI service: {e}")
+            return
 
     # UI update thread
     def update_ui():
@@ -94,6 +104,12 @@ if __name__ == "__main__":
         choices=get_available_processors(),
         help="Process transcript with specified method after recording",
     )
+    parser.add_argument(
+        "--ai-provider",
+        choices=["ollama", "groq", "anthropic", "openai"],
+        default="ollama",
+        help="Specify which AI provider to use",
+    )
     args = parser.parse_args()
 
     if args.list_devices:
@@ -101,4 +117,4 @@ if __name__ == "__main__":
 
         list_audio_devices()
     else:
-        main(process_flag=args.process)
+        main(process_flag=args.process, ai_provider=args.ai_provider)
