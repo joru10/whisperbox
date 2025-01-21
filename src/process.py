@@ -11,12 +11,17 @@ def get_available_processors() -> List[str]:
     return list(config.ai.prompts.processing.keys())
 
 
-def process_transcript(transcript_path: str, method: Optional[str] = None) -> None:
+def process_transcript(
+    transcript_path: str,
+    method: Optional[str] = None,
+    ai_provider: Optional[str] = None,
+) -> None:
     """Process a transcript with AI to generate additional insights.
 
     Args:
         transcript_path (str): Path to the markdown transcript file
         method (str, optional): Processing method to use. Must be one defined in config.ai.prompts.processing
+        ai_provider (str, optional): AI provider to use (ollama, groq, anthropic, or openai)
     """
     try:
         with open(transcript_path, "r") as f:
@@ -35,7 +40,7 @@ def process_transcript(transcript_path: str, method: Optional[str] = None) -> No
         prompt = config.ai.prompts.processing[method].format(text=clean_text)
 
         # Process with AI service
-        ai_service = AIService()
+        ai_service = AIService(service_type=ai_provider)
         result = ai_service.query(prompt)
 
         # Save the processed result

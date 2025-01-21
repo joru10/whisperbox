@@ -14,7 +14,7 @@ from threading import Thread
 console = Console()
 
 
-def main(process_flag=False, ai_provider=None):
+def main(process_method=None, ai_provider=None):
     # Setup logging
     logging.basicConfig(
         level=logging.INFO if not config.system.debug_mode else logging.DEBUG
@@ -53,9 +53,11 @@ def main(process_flag=False, ai_provider=None):
         ui.stop_recording()
 
         # If --process flag is set and we have a transcript, process it
-        if process_flag and transcript_path:
-            logger.info("Processing transcript...")
-            process_transcript(transcript_path)
+        if process_method and transcript_path:
+            logger.info(f"Processing transcript with method: {process_method}...")
+            process_transcript(
+                transcript_path, method=process_method, ai_provider=ai_provider
+            )
 
     def pause_recording():
         logger.info("Toggling recording pause...")
@@ -117,4 +119,4 @@ if __name__ == "__main__":
 
         list_audio_devices()
     else:
-        main(process_flag=args.process, ai_provider=args.ai_provider)
+        main(process_method=args.process, ai_provider=args.ai_provider)
