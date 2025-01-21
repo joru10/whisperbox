@@ -1,31 +1,61 @@
 ai:
   default_model: llama3.1
   prompts:
-    intent: "Detect the intent in the following text. Respond with ONLY 2-4 words.\
+    processing:
+      insights: |
+        Analyze this meeting transcript and provide key insights and observations. Focus on the main themes, 
+        important decisions, and notable points of discussion. Format your response in markdown with clear sections and bullet points.
+
+        {text}
+      summary: |
+        Provide a concise summary of this meeting transcript. Focus on the key points discussed, decisions made, 
+        and main outcomes. Keep it brief but comprehensive.
+
+        {text}
+      action-items: |
+        Extract all action items and next steps from this meeting transcript. Include who is responsible 
+        (if mentioned) and any deadlines. Format as a markdown checklist.
+
+        {text}
+      topics: |
+        Create a detailed outline of all topics discussed in this meeting. Include subtopics and key points 
+        under each main topic. Format in markdown with proper hierarchy.
+
+        {text}
+      questions: |
+        Extract all questions raised during this meeting, both answered and unanswered. Organize them by topic 
+        and indicate if they were answered or require follow-up.
+
+        {text}
+    intent:
+      "Detect the intent in the following text. Respond with ONLY 2-4 words.\
       \ Do not return any preamble, only the intent. Text: \n\n{text}"
-    sentiment: 'Analyze the sentiment of the following text and respond with ONLY
-      ONE WORD - either ''positive'', ''neutral'', or ''negative'':
+    sentiment:
+      "Analyze the sentiment of the following text and respond with ONLY
+      ONE WORD - either 'positive', 'neutral', or 'negative':
 
 
-      {text}'
-    summary: 'Summarize the following text. Just provide the summary, no preamble.
+      {text}"
+    summary:
+      "Summarize the following text. Just provide the summary, no preamble.
       Text:
 
 
-      {text}'
-    topics: 'Please identify the main topics in the following text. Return the topics
+      {text}"
+    topics:
+      "Please identify the main topics in the following text. Return the topics
       as a comma-separated list, with no preamble or additional text. Text:
 
 
-      {text}'
+      {text}"
 api:
   anthropic:
-    api_key: ''
+    api_key: ""
   groq:
-    api_key: ''
+    api_key: ""
   openai:
-    api_key: ''
-    organization: ''
+    api_key: ""
+    organization: ""
 audio:
   capture_system_audio: true
   channels: 1
@@ -51,7 +81,7 @@ output:
   audio_directory: recordings/
   file_format: txt
   save_audio: true
-  timestamp_format: '%Y-%m-%d_%H-%M-%S'
+  timestamp_format: "%Y-%m-%d_%H-%M-%S"
   transcript_directory: transcripts/
 system:
   auto_save_interval: 300
