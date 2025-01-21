@@ -29,9 +29,10 @@ ASCII_ART = """
 Hacker Transcriber
 """
 
+
 def check_ffmpeg():
     try:
-        subprocess.run(['ffmpeg', '-version'], capture_output=True, check=True)
+        subprocess.run(["ffmpeg", "-version"], capture_output=True, check=True)
         return True
     except (subprocess.CalledProcessError, FileNotFoundError):
         console.print("[red]Error: FFmpeg is not installed.[/red]")
@@ -39,14 +40,15 @@ def check_ffmpeg():
         console.print("  brew install ffmpeg")
         return False
 
+
 def install_whisper_model(model_name, whisperfile_path):
     full_model_name = f"whisper-{model_name}.llamafile"
     url = f"{WHISPER_BASE_URL}{full_model_name}"
     output_path = os.path.join(whisperfile_path, full_model_name)
-    
+
     # Create the directory if it doesn't exist
     os.makedirs(whisperfile_path, exist_ok=True)
-    
+
     console.print(f"[yellow]Downloading {full_model_name}...[/yellow]")
     try:
         urlretrieve(url, output_path)
@@ -56,30 +58,36 @@ def install_whisper_model(model_name, whisperfile_path):
         console.print(f"[red]Error downloading model: {str(e)}[/red]")
         raise
 
+
 def get_whisper_model_path(model_name, whisperfile_path, verbose):
     full_model_name = f"whisper-{model_name}.llamafile"
     # Expand user path if necessary
     whisperfile_path = os.path.expanduser(whisperfile_path)
     model_path = os.path.join(whisperfile_path, full_model_name)
-    
+
     console.print(f"[yellow]Looking for Whisper model at: {model_path}[/yellow]")
-    
+
     if not os.path.exists(model_path):
         console.print(f"[yellow]Whisper model {full_model_name} not found.[/yellow]")
-        console.print(f"[yellow]Would you like to download it from {WHISPER_BASE_URL}?[/yellow]")
+        console.print(
+            f"[yellow]Would you like to download it from {WHISPER_BASE_URL}?[/yellow]"
+        )
         if input("Download model? (y/n): ").lower() == "y":
             install_whisper_model(model_name, whisperfile_path)
         else:
-            raise FileNotFoundError(f"Whisper model {full_model_name} not found and download was declined.")
+            raise FileNotFoundError(
+                f"Whisper model {full_model_name} not found and download was declined."
+            )
     else:
         console.print(f"[green]Found Whisper model at: {model_path}[/green]")
-        
+
     # Check if the file is executable
     if not os.access(model_path, os.X_OK):
         console.print("[yellow]Making model file executable...[/yellow]")
         os.chmod(model_path, 0o755)
-        
+
     return model_path
+
 
 def transcribe_audio(model_name, whisperfile_path, audio_file, verbose):
     try:
@@ -93,20 +101,22 @@ def transcribe_audio(model_name, whisperfile_path, audio_file, verbose):
         # Check if file exists and is readable
         if not os.path.exists(audio_file):
             raise FileNotFoundError(f"Audio file not found: {audio_file}")
-            
+
         console.print(f"[yellow]Running transcription command...[/yellow]")
         process = subprocess.Popen(
-            command, 
-            shell=True, 
-            stdout=subprocess.PIPE, 
-            stderr=subprocess.PIPE, 
-            text=True
+            command,
+            shell=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
         )
 
         stdout, stderr = process.communicate()
 
         if process.returncode != 0:
-            console.print(f"[red]Command failed with return code {process.returncode}[/red]")
+            console.print(
+                f"[red]Command failed with return code {process.returncode}[/red]"
+            )
             console.print(f"[red]Error output: {stderr}[/red]")
             raise Exception(f"Transcription failed: {stderr}")
 
@@ -122,13 +132,16 @@ def transcribe_audio(model_name, whisperfile_path, audio_file, verbose):
     except Exception as e:
         console.print(f"[red]Error in transcribe_audio: {str(e)}[/red]")
         import traceback
+
         console.print(f"[red]{traceback.format_exc()}[/red]")
         raise
+
 
 def summarize(text):
     ai_service = AIService()
     prompt = config.ai.prompts.summary.format(text=text)
     return ai_service.query(prompt)
+
 
 def analyze_sentiment(text):
     ai_service = AIService()
@@ -136,29 +149,42 @@ def analyze_sentiment(text):
     sentiment = ai_service.query(prompt).strip().lower()
     return sentiment if sentiment in ["positive", "neutral", "negative"] else "neutral"
 
+
 def detect_intent(text):
     ai_service = AIService()
     prompt = config.ai.prompts.intent.format(text=text)
     return ai_service.query(prompt)
+
 
 def detect_topics(text):
     ai_service = AIService()
     prompt = config.ai.prompts.topics.format(text=text)
     return ai_service.query(prompt)
 
-def export_to_markdown(content, vault_path, filename):
-    os.makedirs(vault_path, exist_ok=True)
-    file_path = os.path.join(vault_path, f"{filename}.md")
+
+def export_to_markdown(text, filename):
+    """Export transcription text to a markdown file in the transcriptions directory.
+
+    Args:
+        text (str): The transcription text
+        filename (str): Name of the file without extension
+    """
+    # Create transcriptions directory if it doesn't exist
+    os.makedirs("transcriptions", exist_ok=True)
+    file_path = os.path.join("transcriptions", f"{filename}.md")
+
     with open(file_path, "w") as f:
-        f.write(content)
-    console.print(f"[green]Exported to {file_path}[/green]")
+        f.write("# Meeting Transcription\n\n")
+        f.write(text)
+
+    console.print(f"[green]Transcription saved to {file_path}[/green]")
+
 
 def get_sentiment_color(sentiment):
-    return {
-        "positive": "green3",
-        "neutral": "gold1",
-        "negative": "red1"
-    }.get(sentiment, "white")
+    return {"positive": "green3", "neutral": "gold1", "negative": "red1"}.get(
+        sentiment, "white"
+    )
+
 
 def display_rich_output(transcript, summary, sentiment, intent, topics):
     # Print the ASCII art directly without a border
@@ -217,9 +243,12 @@ def display_rich_output(transcript, summary, sentiment, intent, topics):
     for panel in panels:
         console.print(panel)
 
+
 class Shallowgram:
     def __init__(self, whisperfile_path=None, vault_path=None):
-        self.whisperfile_path = whisperfile_path or os.path.expanduser("~/.whisperfiles")
+        self.whisperfile_path = whisperfile_path or os.path.expanduser(
+            "~/.whisperfiles"
+        )
         self.vault_path = vault_path or os.path.expanduser("~/Documents/ObsidianVault")
         self.ai_service = AIService()
 
@@ -238,28 +267,19 @@ class Shallowgram:
 
         try:
             console.print("[yellow]Running Whisper transcription...[/yellow]")
-            transcript = transcribe_audio(model, self.whisperfile_path, audio_file, True)  # Set verbose=True
-            
+            transcript = transcribe_audio(
+                model, self.whisperfile_path, audio_file, True
+            )  # Set verbose=True
+
             if not transcript:
                 console.print("[red]Whisper returned empty transcript[/red]")
                 return None
 
-            if full_analysis:
-                console.print("[yellow]Performing AI analysis...[/yellow]")
-                summary = summarize(transcript)
-                sentiment = analyze_sentiment(transcript)
-                intent = detect_intent(transcript)
-                topics = detect_topics(transcript)
-                
-                return {
-                    'text': transcript,
-                    'summary': summary,
-                    'sentiment': sentiment,
-                    'intent': intent,
-                    'topics': topics
-                }
-            
-            return {'text': transcript}
+            # Save transcription to markdown file
+            timestamp = time.strftime("%Y%m%d-%H%M%S")
+            export_to_markdown(transcript, f"meeting_{timestamp}")
+
+            return {"text": transcript}
 
         except Exception as e:
             console.print(f"[red]Error in transcription: {str(e)}[/red]")
