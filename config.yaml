@@ -1,6 +1,32 @@
 ai:
   default_model: llama3.1
   prompts:
+    processing:
+      insights: |
+        Analyze this meeting transcript and provide key insights and observations. Focus on the main themes, 
+        important decisions, and notable points of discussion. Format your response in markdown with clear sections and bullet points.
+
+        {text}
+      summary: |
+        Provide a concise summary of this meeting transcript. Focus on the key points discussed, decisions made, 
+        and main outcomes. Keep it brief but comprehensive.
+
+        {text}
+      action-items: |
+        Extract all action items and next steps from this meeting transcript. Include who is responsible 
+        (if mentioned) and any deadlines. Format as a markdown checklist.
+
+        {text}
+      topics: |
+        Create a detailed outline of all topics discussed in this meeting. Include subtopics and key points 
+        under each main topic. Format in markdown with proper hierarchy.
+
+        {text}
+      questions: |
+        Extract all questions raised during this meeting, both answered and unanswered. Organize them by topic 
+        and indicate if they were answered or require follow-up.
+
+        {text}
     intent:
       "Detect the intent in the following text. Respond with ONLY 2-4 words.\
       \ Do not return any preamble, only the intent. Text: \n\n{text}"

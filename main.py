@@ -2,7 +2,7 @@ from src.config import config
 from src.hotkeys import HotkeyManager
 from src.recording_manager import RecordingManager
 from src.ui import TranscriberUI
-from src.process import process_transcript
+from src.process import process_transcript, get_available_processors
 from rich.console import Console
 import logging
 import argparse
@@ -91,8 +91,8 @@ if __name__ == "__main__":
     )
     parser.add_argument(
         "--process",
-        action="store_true",
-        help="Process transcripts with AI after recording",
+        choices=get_available_processors(),
+        help="Process transcript with specified method after recording",
     )
     args = parser.parse_args()
 
