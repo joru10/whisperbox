@@ -1,31 +1,35 @@
 ai:
   default_model: llama3.1
   prompts:
-    intent: "Detect the intent in the following text. Respond with ONLY 2-4 words.\
+    intent:
+      "Detect the intent in the following text. Respond with ONLY 2-4 words.\
       \ Do not return any preamble, only the intent. Text: \n\n{text}"
-    sentiment: 'Analyze the sentiment of the following text and respond with ONLY
-      ONE WORD - either ''positive'', ''neutral'', or ''negative'':
+    sentiment:
+      "Analyze the sentiment of the following text and respond with ONLY
+      ONE WORD - either 'positive', 'neutral', or 'negative':
 
 
-      {text}'
-    summary: 'Summarize the following text. Just provide the summary, no preamble.
+      {text}"
+    summary:
+      "Summarize the following text. Just provide the summary, no preamble.
       Text:
 
 
-      {text}'
-    topics: 'Please identify the main topics in the following text. Return the topics
+      {text}"
+    topics:
+      "Please identify the main topics in the following text. Return the topics
       as a comma-separated list, with no preamble or additional text. Text:
 
 
-      {text}'
+      {text}"
 api:
   anthropic:
-    api_key: ''
+    api_key: ""
   groq:
-    api_key: ''
+    api_key: ""
   openai:
-    api_key: ''
-    organization: ''
+    api_key: ""
+    organization: ""
 audio:
   capture_system_audio: true
   channels: 1
@@ -51,7 +55,7 @@ output:
   audio_directory: recordings/
   file_format: txt
   save_audio: true
-  timestamp_format: '%Y-%m-%d_%H-%M-%S'
+  timestamp_format: "%Y-%m-%d_%H-%M-%S"
   transcript_directory: transcripts/
 system:
   auto_save_interval: 300

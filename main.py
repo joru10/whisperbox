@@ -2,15 +2,22 @@ from src.config import config
 from src.hotkeys import HotkeyManager
 from src.recording_manager import RecordingManager
 from src.ui import TranscriberUI
+from src.process import process_transcript
+from rich.console import Console
 import logging
 import argparse
 from rich.live import Live
 import time
 from threading import Thread
 
-def main():
+console = Console()
+
+
+def main(process_flag=False):
     # Setup logging
-    logging.basicConfig(level=logging.INFO if not config.system.debug_mode else logging.DEBUG)
+    logging.basicConfig(
+        level=logging.INFO if not config.system.debug_mode else logging.DEBUG
+    )
     logger = logging.getLogger(__name__)
 
     # Initialize managers
@@ -32,8 +39,13 @@ def main():
 
     def stop_recording():
         logger.info("Stopping recording...")
-        recording_manager.stop_recording()
+        transcript_path = recording_manager.stop_recording()
         ui.stop_recording()
+
+        # If --process flag is set and we have a transcript, process it
+        if process_flag and transcript_path:
+            logger.info("Processing transcript...")
+            process_transcript(transcript_path)
 
     def pause_recording():
         logger.info("Toggling recording pause...")
@@ -58,24 +70,35 @@ def main():
             # Start UI update thread
             ui_thread = Thread(target=update_ui, daemon=True)
             ui_thread.start()
-            
+
             # Start hotkey listener
             hotkey_manager.start()
-            
+
         except KeyboardInterrupt:
-            console.print("\n[yellow]Received keyboard interrupt, shutting down...[/yellow]")
+            console.print(
+                "\n[yellow]Received keyboard interrupt, shutting down...[/yellow]"
+            )
             if recording_manager.is_recording:
                 recording_manager.stop_recording()
             hotkey_manager.stop()
             console.print("[green]Goodbye![/green]")
 
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument('--list-devices', action='store_true', help='List available audio devices')
+    parser.add_argument(
+        "--list-devices", action="store_true", help="List available audio devices"
+    )
+    parser.add_argument(
+        "--process",
+        action="store_true",
+        help="Process transcripts with AI after recording",
+    )
     args = parser.parse_args()
-    
+
     if args.list_devices:
         from src.audio import list_audio_devices
+
         list_audio_devices()
     else:
-        main()
+        main(process_flag=args.process)
