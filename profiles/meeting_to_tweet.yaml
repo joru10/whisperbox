@@ -1,0 +1,9 @@
+name: meeting_to_tweet
+prompt: >
+  Take the following meeting transcript and convert it into a single viral social media post. 
+  Make it engaging, punchy, and shareable.
+  Keep it under 280 characters and focus on the most interesting or surprising insight.
+  No hashtags.
+
+actions:
+  - script: copy_to_clipboard
