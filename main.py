@@ -55,6 +55,7 @@ def cli_mode(ai_provider=None, debug=False, profile=None):
 
     def stop_recording_and_process():
         log.recording("Stopping recording...")
+        log.info("(Due to a temporary bug, you may need to press a key to continue if it gets stuck here)")
         audio_file_path = recording_manager.stop_recording()
         transcript_path = get_transcript_path(audio_file_path)
 

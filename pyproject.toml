@@ -28,6 +28,7 @@ groq = "^0.15.0"
 toga = "^0.4.8"
 toga-cocoa = "^0.4.8"
 inquirerpy = "^0.3.4"
+requests = "^2.32.3"
 
 [tool.poetry.scripts]
 wb = "main:main"
