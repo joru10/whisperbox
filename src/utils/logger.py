@@ -18,6 +18,7 @@ THEME = Theme({
     'recording': 'bold red',
     'transcribing': 'bold yellow',
     'done': 'bold green',
+    'save': 'green',
     'header': 'bold magenta'  # Added header style
 })
 
@@ -61,6 +62,10 @@ class Logger:
     def transcribing(self, message: str):
         """Log a transcription-related message"""
         self.console.print(self._format_message(f"📝 {message}", "transcribing"))
+        
+    def save(self, message: str):
+        """Log a transcription-related message"""
+        self.console.print(self._format_message(f"💾 {message}", "save"))
         
     def status(self, message: str):
         """Update the current status"""
