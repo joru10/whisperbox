@@ -10,11 +10,13 @@ from src.utils.logger import log
 from src.core.setup import setup
 from src.audio.audio import list_audio_devices
 from src.utils.utils import is_first_run, create_app_directory_structure
-from src.ai.process import process_transcript, get_available_processors
+from src.ai.process_transcript import process_transcript, get_available_processors
 from src.ai.ai_service import AIService
+from src.utils.profile_parser import load_profile_yaml
+from src.utils.profile_executor import run_profile_actions
 
 
-def cli_mode(process_method=None, ai_provider=None, debug=False):
+def cli_mode(process_method=None, ai_provider=None, debug=False, profile=None):
     """Run the application in CLI mode."""
     # Initialize logging
     log.debug_mode = debug or config.system.debug_mode
@@ -23,7 +25,7 @@ def cli_mode(process_method=None, ai_provider=None, debug=False):
         level=logging.INFO if not config.system.debug_mode else logging.DEBUG
     )
     logger = logging.getLogger(__name__)
-    
+
     # Print header and instructions
     log.print_header()
     log.print_instructions()
@@ -40,7 +42,11 @@ def cli_mode(process_method=None, ai_provider=None, debug=False):
             logger.error(f"Error initializing AI service: {e}")
             return
 
-
+    # If the user passes in a profile name, load it
+    profile_data = {}
+    if profile:
+        profile_data = load_profile_yaml(profile)
+        logging.info(f"Loaded profile: {profile_data.get('name')}")
 
     # Define handler functions
     def start_recording():
@@ -58,13 +64,18 @@ def cli_mode(process_method=None, ai_provider=None, debug=False):
                 transcript_path, method=process_method, ai_provider=ai_provider
             )
 
-
         # If --process flag is set and we have a transcript, process it
         if process_method and transcript_path:
             logger.info(f"Processing transcript with method: {process_method}...")
-            process_transcript(
-                transcript_path, method=process_method, ai_provider=ai_provider
+            # run AI
+            processed_output = process_transcript(
+                transcript_path,
+                method=process_method,
+                ai_provider=ai_provider,
+                prompt=profile_data.get("prompt", ""),
             )
+            # run the actions
+            run_profile_actions(profile_data, processed_output)
 
     def pause_recording():
         log.recording("Toggling recording pause...")
@@ -88,10 +99,19 @@ def cli_mode(process_method=None, ai_provider=None, debug=False):
 
     # Command handlers
     command_handlers = {
-        'help': lambda: (log.print_help(), input(), log.print_header(), log.print_instructions()),
-        'config': lambda: (os.system(f"open {config._config_path}"), log.print_header(), log.print_instructions()),
-        'devices': lambda: (list_audio_devices(), log.print_instructions()),
-        'quit': quit_app
+        "help": lambda: (
+            log.print_help(),
+            input(),
+            log.print_header(),
+            log.print_instructions(),
+        ),
+        "config": lambda: (
+            os.system(f"open {config._config_path}"),
+            log.print_header(),
+            log.print_instructions(),
+        ),
+        "devices": lambda: (list_audio_devices(), log.print_instructions()),
+        "quit": quit_app,
     }
 
     try:
@@ -105,7 +125,7 @@ def cli_mode(process_method=None, ai_provider=None, debug=False):
             try:
                 command = input().strip().lower()
                 if command in config.commands:
-                    action = config.commands[command]['action']
+                    action = config.commands[command]["action"]
                     if action in command_handlers:
                         result = command_handlers[action]()
                         if result:  # For quit handler
@@ -128,10 +148,12 @@ def cli_mode(process_method=None, ai_provider=None, debug=False):
     hotkey_manager.stop()
     log.success("Goodbye!")
 
+
 def app_mode():
     """Run the application in GUI mode."""
     try:
         from src.ui.app import TranscriberApp
+
         app = TranscriberApp()
         return app.main_loop()
     except ImportError as e:
@@ -139,12 +161,17 @@ def app_mode():
         log.error(f"Error details: {e}")
         return 1
 
+
 def main():
-    parser = argparse.ArgumentParser(description="WhisperBox - Record and transcribe audio")
-    parser.add_argument('--app', action='store_true', help='Launch in GUI mode')
-    parser.add_argument('--debug', action='store_true', help='Enable debug mode')
-    parser.add_argument('--list-devices', action='store_true', help='List available audio devices')
-    parser.add_argument('--setup', action='store_true', help='Run setup wizard')
+    parser = argparse.ArgumentParser(
+        description="WhisperBox - Record and transcribe audio"
+    )
+    parser.add_argument("--app", action="store_true", help="Launch in GUI mode")
+    parser.add_argument(
+        "--list-devices", action="store_true", help="List available audio devices"
+    )
+    parser.add_argument("--setup", action="store_true", help="Run setup wizard")
+    parser.add_argument("--debug", action="store_true", help="Enable debug mode")
 
     parser.add_argument(
         "--process",
@@ -158,23 +185,27 @@ def main():
         help="Specify which AI provider to use",
     )
     args = parser.parse_args()
-    
+
     # Create basic directory structure
     create_app_directory_structure()
-    
+
     # Run setup if it's the first time or explicitly requested
     if is_first_run() or args.setup:
         setup()
         return 0  # Exit after setup to ensure clean config loading
-    
+
     if args.list_devices:
 
         list_audio_devices()
     elif args.app:
         return app_mode()
     else:
-        cli_mode(process_method=args.process, ai_provider=args.ai_provider)
+        cli_mode(
+            process_method=args.process,
+            ai_provider=args.ai_provider,
+            profile=args.profile,
+        )
+
 
 if __name__ == "__main__":
     main()
-
