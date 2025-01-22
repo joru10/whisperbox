@@ -1,18 +1,18 @@
-from src.config import config
-from src.hotkeys import HotkeyManager
-from src.recording_manager import RecordingManager
-from src.logger import log
-from src.setup import setup
-from src.audio import list_audio_devices
-from src.utils import is_first_run, create_app_directory_structure
-from src.process import process_transcript, get_available_processors
-from src.ai_service import AIService
-
-import argparse
-import time
-from threading import Thread
 import os
+import time
 import logging
+import argparse
+from threading import Thread
+from src.core.config import config
+from src.utils.hotkeys import HotkeyManager
+from src.audio.recording_manager import RecordingManager
+from src.utils.logger import log
+from src.core.setup import setup
+from src.audio.audio import list_audio_devices
+from src.utils.utils import is_first_run, create_app_directory_structure
+from src.ai.process import process_transcript, get_available_processors
+from src.ai.ai_service import AIService
+
 
 def cli_mode(process_method=None, ai_provider=None):
     """Run the application in CLI mode."""
@@ -132,7 +132,7 @@ def cli_mode(process_method=None, ai_provider=None):
 def app_mode():
     """Run the application in GUI mode."""
     try:
-        from src.app import TranscriberApp
+        from src.ui.app import TranscriberApp
         app = TranscriberApp()
         return app.main_loop()
     except ImportError as e:

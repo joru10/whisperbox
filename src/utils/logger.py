@@ -5,7 +5,7 @@ from datetime import datetime
 from typing import Optional
 import sys
 from rich.table import Table
-from .config import config, DEFAULT_CONFIG
+from core.config import config
 
 # Custom theme for consistent colors
 THEME = Theme({

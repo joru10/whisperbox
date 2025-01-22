@@ -2,9 +2,9 @@ import os
 from datetime import datetime
 from rich.console import Console
 from .audio import AudioRecorder
-from .config import config
-from .transcribe import Shallowgram
-from .logger import log
+from core.config import config
+from ai.transcribe import Shallowgram
+from utils.logger import log
 import traceback
 
 console = Console()
@@ -72,7 +72,7 @@ class RecordingManager:
                 
 
                 # Display results
-                from .transcribe import display_rich_output
+                from ai.transcribe import display_rich_output
 
                 display_rich_output(
                     result["text"],

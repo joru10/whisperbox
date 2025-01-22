@@ -1,7 +1,7 @@
 import os
 import yaml
 from typing import Dict, Any, Optional
-from .utils import get_config_path, get_recordings_dir, get_transcripts_dir, get_models_dir, save_config, load_config
+from utils.utils import get_config_path, get_recordings_dir, get_transcripts_dir, get_models_dir, save_config, load_config
 
 DEFAULT_CONFIG = {
     'commands': {

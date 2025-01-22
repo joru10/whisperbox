@@ -3,15 +3,15 @@ import yaml
 import subprocess
 from rich.prompt import Prompt, Confirm
 from .config import Config, DEFAULT_CONFIG
-from .transcribe import install_whisper_model, check_ffmpeg
-from .utils import (
+from ai.transcribe import install_whisper_model, check_ffmpeg
+from utils.utils import (
     create_app_directory_structure, save_config, get_config_path, 
     get_models_dir, get_app_dir, reveal_in_file_manager
 )
 from typing import Dict, Any, Union
 from pathlib import Path
 from InquirerPy import inquirer
-from src.logger import log
+from utils.logger import log
 import time
 
 WHISPER_MODELS = {
