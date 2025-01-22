@@ -14,10 +14,10 @@ from src.ai.process import process_transcript, get_available_processors
 from src.ai.ai_service import AIService
 
 
-def cli_mode(process_method=None, ai_provider=None):
+def cli_mode(process_method=None, ai_provider=None, debug=False):
     """Run the application in CLI mode."""
     # Initialize logging
-    log.debug_mode = config.system.debug_mode
+    log.debug_mode = debug or config.system.debug_mode
 
     logging.basicConfig(
         level=logging.INFO if not config.system.debug_mode else logging.DEBUG
@@ -36,7 +36,6 @@ def cli_mode(process_method=None, ai_provider=None):
     if ai_provider:
         try:
             ai_service = AIService(service_type=ai_provider)
-            logger.info(f"Using AI provider: {ai_provider}")
         except ValueError as e:
             logger.error(f"Error initializing AI service: {e}")
             return
@@ -143,6 +142,7 @@ def app_mode():
 def main():
     parser = argparse.ArgumentParser(description="WhisperBox - Record and transcribe audio")
     parser.add_argument('--app', action='store_true', help='Launch in GUI mode')
+    parser.add_argument('--debug', action='store_true', help='Enable debug mode')
     parser.add_argument('--list-devices', action='store_true', help='List available audio devices')
     parser.add_argument('--setup', action='store_true', help='Run setup wizard')
 

@@ -78,7 +78,7 @@ def get_whisper_model_path(model_name, whisperfile_path, verbose):
     whisperfile_path = os.path.expanduser(whisperfile_path)
     model_path = os.path.join(whisperfile_path, full_model_name)
     
-    log.info(f"Looking for Whisper model at: {model_path}")
+    log.debug(f"Looking for Whisper model at: {model_path}")
     
     if not os.path.exists(model_path):
         log.warning(f"Whisper model {full_model_name} not found.")
@@ -91,7 +91,7 @@ def get_whisper_model_path(model_name, whisperfile_path, verbose):
                 f"Whisper model {full_model_name} not found and download was declined."
             )
     else:
-        log.success(f"Found Whisper model at: {model_path}")
+        log.debug(f"Found Whisper model at: {model_path}")
         
 
     # Check if the file is executable
@@ -109,13 +109,13 @@ def transcribe_audio(model_name, whisperfile_path, audio_file, verbose):
         command = f"{model_path} -f {audio_file} {gpu_flag}"
 
         if verbose:
-            log.info(f"Attempting to run command: {command}")
+            log.debug(f"Attempting to run command: {command}")
 
         # Check if file exists and is readable
         if not os.path.exists(audio_file):
             raise FileNotFoundError(f"Audio file not found: {audio_file}")
             
-        log.info("Running transcription command...")
+        log.debug("Running transcription command...")
 
         process = subprocess.Popen(
             command,
@@ -176,22 +176,20 @@ def detect_topics(text):
     return ai_service.query(prompt)
 
 
-def export_to_markdown(text, filename):
-    """Export transcription text to a markdown file in the transcriptions directory.
+def export_to_markdown(text, session_dir):
+    """Export transcription text to a markdown file in the session directory.
 
     Args:
         text (str): The transcription text
-        filename (str): Name of the file without extension
+        session_dir (str): Path to the session directory
     """
-    # Create transcriptions directory if it doesn't exist
-    os.makedirs("transcriptions", exist_ok=True)
-    file_path = os.path.join("transcriptions", f"{filename}.md")
+    file_path = os.path.join(session_dir, "whisper_transcript.md")
 
     with open(file_path, "w") as f:
-        f.write("# Meeting Transcription\n\n")
+        f.write("# Raw Whisper Transcription\n\n")
         f.write(text)
 
-    log.success(f"Transcription saved to {file_path}")
+    log.success(f"Raw transcription saved to {file_path}")
 
 
 def get_sentiment_color(sentiment):
@@ -288,10 +286,9 @@ class Shallowgram:
                 log.error("Whisper returned empty transcript")
                 return None
 
-            # Save transcription to markdown file
-            timestamp = time.strftime("%Y%m%d-%H%M%S")
-            export_to_markdown(transcript, f"meeting_{timestamp}")
-
+            # Get the session directory from the audio file path
+            session_dir = os.path.dirname(audio_file)
+            
             if full_analysis:
                 log.info("Performing AI analysis...")
                 summary = summarize(transcript)

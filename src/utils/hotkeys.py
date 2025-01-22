@@ -70,7 +70,6 @@ class HotkeyManager:
 
     def start(self) -> None:
         """Start listening for hotkeys."""
-        self.logger.info("Hotkey manager started")
         with keyboard.Listener(
             on_press=self._on_press,
             on_release=self._on_release) as listener:
@@ -82,4 +81,3 @@ class HotkeyManager:
         if self._listener:
             self._listener.stop()
             self._stop_event.set()  # Set the stop event
-        self.logger.info("Hotkey manager stopped")
