@@ -1,25 +1,61 @@
 import os
 import yaml
 from typing import Dict, Any, Optional
+from .utils import get_config_path, get_recordings_dir, get_transcripts_dir, get_models_dir, save_config, load_config
+
+DEFAULT_CONFIG = {
+    'commands': {
+        'help': {
+            'description': 'Show help menu',
+            'action': 'help'
+        },
+        'config': {
+            'description': 'Configure application settings',
+            'action': 'config'
+        },
+        'devices': {
+            'description': 'List available audio devices',
+            'action': 'devices'
+        }
+    },
+    'ai': {
+        'default_provider': 'ollama',
+        'default_model': 'llama3.2'
+    },
+    'hotkeys': {
+        'start_recording': 'ctrl+r',
+        'stop_recording': 'ctrl+s',
+        'pause_recording': 'ctrl+shift+p',
+    },
+    'output': {
+        'audio_directory': str(get_recordings_dir()),
+        'transcript_directory': str(get_transcripts_dir()),
+    },
+    'transcription': {
+        'whisper': {
+            'models_path': str(get_models_dir()),
+            'base_url': 'https://huggingface.co/Mozilla/whisperfile/resolve/main/',
+            'gpu_enabled': True
+        }
+    },
+    'system': {
+        'temp_directory': '/tmp/whisperbox',
+        'debug_mode': False
+    }
+}
 
 class Config:
-    def __init__(self, config_path: str = "config.yaml"):
-        """Initialize configuration from YAML file.
-        
-        Args:
-            config_path (str): Path to the config.yaml file
-        """
-        self._config_path = config_path
+    def __init__(self):
+        """Initialize configuration from YAML file."""
+        self._config_path = get_config_path()
         self._config: Dict[str, Any] = {}
+        self._config.update(DEFAULT_CONFIG)  # Start with defaults
         self.load_config()
         
     def load_config(self) -> None:
         """Load configuration from YAML file."""
-        if not os.path.exists(self._config_path):
-            raise FileNotFoundError(f"Configuration file not found: {self._config_path}")
-            
-        with open(self._config_path, 'r') as f:
-            self._config = yaml.safe_load(f)
+        file_config = load_config()
+        self._config.update(file_config)
             
         # Create directories if they don't exist
         os.makedirs(self.output.audio_directory, exist_ok=True)
@@ -29,6 +65,10 @@ class Config:
         # Load API keys from environment variables if available
         self._load_api_keys_from_env()
     
+    def save(self) -> None:
+        """Save current configuration to file."""
+        save_config(self._config)
+
     def _load_api_keys_from_env(self) -> None:
         """Load API keys from environment variables if they exist."""
         env_mapping = {
@@ -97,6 +137,11 @@ class Config:
         return ConfigSection(self._config.get('system', {}))
 
     @property
+    def commands(self):
+        """Access command settings."""
+        return ConfigSection(self._config.get('commands', {}))
+
+    @property
     def hotkeys(self):
         """Access hotkey settings."""
         return ConfigSection(self._config.get('hotkeys', {}))
@@ -108,26 +153,27 @@ class ConfigSection:
         
     def __getattr__(self, key: str) -> Any:
         if key not in self._section:
-            return None  # Return None instead of raising AttributeError
+            return None
         value = self._section[key]
         if isinstance(value, dict):
-            return ConfigSection(value)  # Recursively wrap nested dictionaries
+            return ConfigSection(value)
         return value
+    
+    def __getitem__(self, key: str) -> Any:
+        """Support dictionary-style access."""
+        return self._section[key]
+    
+    def __contains__(self, key: str) -> bool:
+        """Support 'in' operator."""
+        return key in self._section
     
     def get(self, key: str, default: Any = None) -> Any:
         """Get a configuration value with a default."""
         return self._section.get(key, default)
+        
+    def items(self):
+        """Make the config section iterable like a dict."""
+        return self._section.items()
 
 # Create a global config instance
 config = Config()
-
-# # Usage example:
-# if __name__ == "__main__":
-#     # Test the configuration
-#     try:
-#         print(f"Audio sample rate: {config.audio.sample_rate}")
-#         print(f"Transcription language: {config.transcription.language}")
-#         print(f"Output directory: {config.output.transcript_directory}")
-#         print(f"Debug mode: {config.system.debug_mode}")
-#     except Exception as e:
-#         print(f"Error: {e}") 

@@ -1,7 +1,7 @@
 [tool.poetry]
-name = "hacker-transcriber"
+name = "whisperbox"
 version = "1.0.0"
-description = "Transcribe meetings right in your terminal"
+description = "WhisperBox - Record and transcribe audio with ease"
 authors = ["Ty Fiero <tyfierodev@gmail.com>", "Mike Bird <tooluseai@gmail.com>"]
 readme = "README.md"
 packages = [{include = "src"}]
@@ -15,7 +15,7 @@ classifiers = [
 
 
 [tool.poetry.dependencies]
-python = "^3.10"
+python = ">=3.10,<3.12"
 pydub = "^0.25.1"
 pyaudio = "^0.2.13"
 rich = "^13.3.0"
@@ -25,7 +25,10 @@ anthropic = "^0.43.0"
 openai = "^1.59.7"
 ollama = "^0.4.6"
 groq = "^0.15.0"
+toga = "^0.4.8"
+toga-cocoa = "^0.4.8"
+inquirerpy = "^0.3.4"
 
 [tool.poetry.scripts]
-transcribe = "main:main"
+transcriber = "main:main"
 setup = "src.setup:setup"

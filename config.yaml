@@ -1,5 +1,6 @@
 ai:
   default_model: llama3.1
+  default_provider: ollama
   prompts:
     processing:
       insights: |
@@ -60,6 +61,9 @@ audio:
   capture_system_audio: true
   channels: 1
   chunk_size: 1024
+  devices:
+    microphone: MacBook Pro Microphone
+    system_audio: BlackHole 2ch
   format: wav
   sample_rate: 44100
 display:
@@ -74,7 +78,6 @@ display:
   show_timestamps: true
 hotkeys:
   pause_recording: ctrl+shift+p
-  quit: ctrl+shift+q
   start_recording: ctrl+r
   stop_recording: ctrl+s
 output:

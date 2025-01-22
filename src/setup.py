@@ -1,105 +1,228 @@
 import os
 import yaml
-from rich.console import Console
+import subprocess
 from rich.prompt import Prompt, Confirm
-from .config import Config
+from .config import Config, DEFAULT_CONFIG
 from .transcribe import install_whisper_model, check_ffmpeg
-from typing import Dict, Any
-
-console = Console()
+from .utils import (
+    create_app_directory_structure, save_config, get_config_path, 
+    get_models_dir, get_app_dir, reveal_in_file_manager
+)
+from typing import Dict, Any, Union
+from pathlib import Path
+from InquirerPy import inquirer
+from src.logger import log
+import time
 
 WHISPER_MODELS = {
-    "1": {"name": "tiny.en", "description": "Fastest, least accurate, ~1GB RAM"},
-    "2": {"name": "base.en", "description": "Fast, decent accuracy, ~1GB RAM"},
-    "3": {"name": "small.en", "description": "Balanced speed/accuracy, ~2GB RAM"},
-    "4": {"name": "medium.en", "description": "More accurate, slower, ~5GB RAM"},
-    "5": {"name": "large", "description": "Most accurate, slowest, ~10GB RAM"},
+    "tiny.en": {"description": "Fastest, least accurate, ~1GB RAM"},
+    "base.en": {"description": "Fast, decent accuracy, ~1GB RAM"},
+    "small.en": {"description": "Balanced speed/accuracy, ~2GB RAM"},
+    "medium.en": {"description": "More accurate, slower, ~5GB RAM"},
+    "large": {"description": "Most accurate, slowest, ~10GB RAM"},
 }
+
+AI_PROVIDERS = {
+    "ollama": {
+        "description": "Local AI models (requires Ollama installation)",
+        "default_model": "llama2"
+    },
+    "openai": {
+        "description": "OpenAI's GPT models (requires API key)",
+        "default_model": "gpt-4-0125-preview"
+    },
+    "anthropic": {
+        "description": "Anthropic's Claude models (requires API key)",
+        "default_model": "claude-3-sonnet-20240229"
+    },
+    "groq": {
+        "description": "Groq's fast inference API (requires API key)",
+        "default_model": "mixtral-8x7b-32768"
+    }
+}
+
+def check_ollama() -> bool:
+    """Check if Ollama is installed and accessible."""
+    try:
+        subprocess.run(['ollama', '--version'], capture_output=True, check=True)
+        return True
+    except (subprocess.CalledProcessError, FileNotFoundError):
+        return False
 
 def setup_config() -> Dict[str, Any]:
     """Interactive configuration setup."""
-    console.print("\n[bold blue]Welcome to Hacker Transcriber Setup![/bold blue]")
+    log.header("Welcome to WhisperBox!")
+    time.sleep(1)
+    log.info("Let's get you set up.")
+    time.sleep(0.5)
+    
+    # Create application directory structure
+    create_app_directory_structure()
+    log.success(f"Created WhisperBox directory at: {get_app_dir()}")
+    log.info("Your recordings and transcripts will be saved here.")
+    
+    # Start with default config
+    config = DEFAULT_CONFIG.copy()
     
     # Check FFmpeg
-    console.print("\n[yellow]Checking FFmpeg installation...[/yellow]")
+    log.info("Checking FFmpeg installation...")
+    time.sleep(0.5)
     if not check_ffmpeg():
         if not Confirm.ask("Would you like to continue anyway?"):
             raise SystemExit("Setup cancelled")
-
-    # Load existing config if available
-    config = {}
-    if os.path.exists("config.yaml"):
-        with open("config.yaml", "r") as f:
-            config = yaml.safe_load(f)
+    else:
+        log.success("FFmpeg is installed.")
 
     # Select Whisper model
-    console.print("\n[bold]Available Whisper Models:[/bold]")
-    for key, model in WHISPER_MODELS.items():
-        console.print(f"{key}. {model['name']} - {model['description']}")
+    log.header("Whisper Model Selection")
+    model_choices = [
+        f"{model_name} - {model_info['description']}"
+        for model_name, model_info in WHISPER_MODELS.items()
+    ]
     
-    model_choice = Prompt.ask(
-        "Select a model",
-        choices=list(WHISPER_MODELS.keys()),
-        default="1"
-    )
+    selection = inquirer.select(
+        message="Select a Whisper model:",
+        choices=model_choices,
+        default=model_choices[0]
+    ).execute()
     
-    selected_model = WHISPER_MODELS[model_choice]["name"]
+    # Extract model name from selection
+    selected_model = selection.split(" - ")[0]
     
-    # Update config
+    # Update config with model selection
     if "transcription" not in config:
         config["transcription"] = {}
     if "whisper" not in config["transcription"]:
         config["transcription"]["whisper"] = {}
     
     config["transcription"]["whisper"]["model"] = selected_model
+    config["transcription"]["whisper"]["models_path"] = str(get_models_dir())
     
-    # Configure API keys
-    console.print("\n[bold]API Configuration[/bold]")
-    console.print("(Press Enter to skip if not using)")
+    # Save initial config
+    save_config(config)
     
-    api_keys = {
-        "OPENAI_API_KEY": "OpenAI",
-        "ANTHROPIC_API_KEY": "Anthropic",
-        "GROQ_API_KEY": "Groq"
-    }
+    # Download the model immediately after selection
+    download_model(config)
     
-    for env_var, service in api_keys.items():
-        current_key = os.getenv(env_var) or ""
-        if not current_key:
-            key = Prompt.ask(f"{service} API Key", password=True, default="")
-            if key:
-                os.environ[env_var] = key
+    time.sleep(0.5)
+    # Configure AI Settings
+    log.header("AI Configuration")
+    time.sleep(0.5)
+    
+    # Select AI provider
+    provider_choices = [
+        f"{provider} - {info['description']}"
+        for provider, info in AI_PROVIDERS.items()
+    ]
+    
+    provider_selection = inquirer.select(
+        message="Select your preferred AI provider:",
+        choices=provider_choices,
+        default=provider_choices[0]
+    ).execute()
+    
+    # Extract provider name from selection
+    selected_provider = provider_selection.split(" - ")[0]
+    
+    # Initialize AI config
+    if "ai" not in config:
+        config["ai"] = {}
+    
+    config["ai"]["default_provider"] = selected_provider
+    
+    # Handle provider-specific setup
+    if selected_provider == "ollama":
+        if not check_ollama():
+            log.warning("Ollama is not installed. Please visit ollama.com to install it")
+            log.warning("and download a model before using WhisperBox with Ollama.")
+        model = inquirer.text(
+            message="Enter the Ollama model name (e.g., llama3.2):",
+            default=AI_PROVIDERS["ollama"]["default_model"]
+        ).execute()
+        config["ai"]["default_model"] = model
+    else:
+        # For other providers, handle API key and model selection
+        if "api" not in config:
+            config["api"] = {}
+        if selected_provider.lower() not in config["api"]:
+            config["api"][selected_provider.lower()] = {}
+        
+        # Get API key
+        key = inquirer.secret(
+            message=f"Enter your {selected_provider} API key:",
+            validate=lambda x: len(x) > 0,
+            invalid_message="API key cannot be empty"
+        ).execute()
+        
+        config["api"][selected_provider.lower()]["api_key"] = key
+        
+        # Get model name
+        model = inquirer.text(
+            message=f"Enter the {selected_provider} model name, as it appears in the API documentation for that provider:",
+            default=AI_PROVIDERS[selected_provider]["default_model"]
+        ).execute()
+        
+        config["ai"]["default_model"] = model
 
-    # Save config
-    with open("config.yaml", "w") as f:
-        yaml.dump(config, f, default_flow_style=False)
+    # Save final config
+    save_config(config)
+    config_path = get_config_path()
+    log.info(f"Configuration saved to: {config_path}")
+    log.info("This file contains your settings and API keys.")
+    
+    # Ask if user wants to view config file
+    if Confirm.ask("Would you like to view the config file location to customize additional settings?"):
+        try:
+            reveal_in_file_manager(config_path)
+            log.info("Opening folder containing config.yaml...")
+            log.info("You can edit this file with your preferred text editor to customize additional settings.")
+            log.info("Changes will take effect the next time you run the application.")
+        except Exception as e:
+            log.error(f"Error revealing config file: {e}")
+            log.info(f"You can find the config file at: {config_path}")
 
     return config
 
 def download_model(config: Dict[str, Any]) -> None:
     """Download the selected Whisper model."""
     model_name = config["transcription"]["whisper"]["model"]
-    whisperfile_path = os.path.expanduser(config["transcription"]["whisper"].get("whisperfile_path", "~/.whisperfiles"))
+    models_path = Path(config["transcription"]["whisper"]["models_path"])
+    model_file = models_path / f"whisper-{model_name}.llamafile"
     
-    console.print(f"\n[yellow]Downloading Whisper model: {model_name}[/yellow]")
-    try:
-        install_whisper_model(model_name, whisperfile_path)
-        console.print("[green]Model downloaded successfully![/green]")
-    except Exception as e:
-        console.print(f"[red]Error downloading model: {e}[/red]")
-        if not Confirm.ask("Would you like to continue anyway?"):
-            raise SystemExit("Setup cancelled")
+    log.info(f"Checking for Whisper model: {model_name}")
+    
+    if model_file.exists():
+        log.warning(f"Warning: Model {model_name} already exists at: {model_file}")
+        if not Confirm.ask("Would you like to download and overwrite it?"):
+            log.info("Using existing model.")
+            return
+        log.warning("Proceeding with download...")
+    
+    max_retries = 3
+    for attempt in range(max_retries):
+        try:
+            install_whisper_model(model_name, str(models_path))
+            log.success("Model downloaded successfully!")
+            return
+        except Exception as e:
+            if attempt < max_retries - 1:
+                log.warning(f"Error downloading model (attempt {attempt + 1}/{max_retries}): {e}")
+                log.warning("Retrying...")
+            else:
+                log.error(f"Error downloading model: {e}")
+                if not Confirm.ask("Would you like to continue without downloading the model?"):
+                    raise SystemExit("Setup cancelled")
+                log.warning("Continuing without model. You can download it later using the setup command.")
 
 def setup():
     """Run the complete setup process."""
     try:
         config = setup_config()
-        download_model(config)
         
-        console.print("\n[bold green]Setup completed successfully![/bold green]")
-        console.print("\nYou can now run the transcriber with:")
-        console.print("[blue]poetry run transcribe[/blue]")
+        log.success("Setup completed successfully!")
+        log.info("You can now run the transcriber with:")
+        log.info("[blue]transcribe[/blue]")
         
     except Exception as e:
-        console.print(f"\n[red]Setup failed: {e}[/red]")
+        log.error(f"Setup failed: {e}")
         raise SystemExit(1) 
