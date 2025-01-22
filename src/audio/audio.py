@@ -28,7 +28,7 @@ class AudioRecorder:
             device_info = self.p.get_device_info_by_index(i)
             device_name = str(device_info.get('name', '')).lower()
             if 'blackhole' in device_name:
-                log.success("Found BlackHole audio device")
+                log.debug("Found BlackHole audio device")
                 return i
             elif any(name in device_name for name in ['stereo mix', 'wave out', 'loopback', 'cable']):
                 return i
@@ -39,27 +39,31 @@ class AudioRecorder:
         try:
             # Try to get loopback device first
             loopback_index = self._get_loopback_device_index()
+            self.system_stream = None
             
             if loopback_index is not None and config.audio.capture_system_audio:
-                # Create a stream for system audio with non-blocking
-                self.system_stream = self.p.open(
-                    format=pyaudio.paInt16,
-                    channels=config.audio.channels,
-                    rate=config.audio.sample_rate,
-                    input=True,
-                    input_device_index=loopback_index,
-                    frames_per_buffer=config.audio.chunk_size,
-                    stream_callback=None,
-                    start=False  # Don't start yet
-                )
-                log.success("System audio capture enabled")
-            else:
-                self.system_stream = None
-                if config.audio.capture_system_audio:
-                    log.warning("No loopback device found. To capture system audio:")
-                    log.info("1. Install BlackHole: brew install blackhole-2ch")
-                    log.info("2. Set up a Multi-Output Device in Audio MIDI Setup")
-                    log.info("3. Select BlackHole as your system output")
+                try:
+                    # Create a stream for system audio with non-blocking
+                    self.system_stream = self.p.open(
+                        format=pyaudio.paInt16,
+                        channels=config.audio.channels,
+                        rate=config.audio.sample_rate,
+                        input=True,
+                        input_device_index=loopback_index,
+                        frames_per_buffer=config.audio.chunk_size,
+                        stream_callback=None,
+                        start=False  # Don't start yet
+                    )
+                    log.debug("System audio capture enabled")
+                except Exception as e:
+                    self.system_stream = None
+                    log.warning("Failed to initialize system audio capture. Error: " + str(e))
+            
+            if self.system_stream is None and config.audio.capture_system_audio:
+                log.warning("No loopback device found or failed to initialize. To capture system audio:")
+                log.info("1. Install BlackHole: brew install blackhole-2ch")
+                log.info("2. Set up a Multi-Output Device in Audio MIDI Setup")
+                log.info("3. Select BlackHole as your system output")
 
             # Create microphone stream with non-blocking
             self.mic_stream = self.p.open(
@@ -159,7 +163,7 @@ class AudioRecorder:
                 break
 
         log.debug("Recording thread exiting")
-        log.warning("Recording thread stopped")
+        log.debug("Recording thread stopped")
     
     def stop(self):
         """Stop recording and save to file."""
@@ -168,7 +172,7 @@ class AudioRecorder:
             return
             
         log.debug("=== Audio Recorder Stop Sequence ===")
-        log.status("Stopping recording thread...")
+        log.debug("Stopping recording thread...")
         
         # First stop the streams to prevent any more data from being read
         log.debug("Stopping audio streams...")
@@ -210,14 +214,13 @@ class AudioRecorder:
         
     def save(self, output_file):
         """Save recorded audio to file."""
-        log.status(f"Saving {len(self.frames)} frames to {output_file}")
+        log.debug(f"Saving {len(self.frames)} frames to {output_file}")
         wf = wave.open(output_file, 'wb')
         wf.setnchannels(config.audio.channels)
         wf.setsampwidth(self.p.get_sample_size(pyaudio.paInt16))
         wf.setframerate(config.audio.sample_rate)
         wf.writeframes(b''.join(self.frames))
         wf.close()
-        log.success(f"Successfully saved audio to {output_file}")
         self.frames = []  # Clear frames after saving
         
     def __del__(self):

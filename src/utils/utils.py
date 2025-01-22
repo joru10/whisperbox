@@ -91,3 +91,25 @@ def reveal_in_file_manager(path: Union[str, Path]):
         except FileNotFoundError:
             # Fallback for systems without xdg-open
             subprocess.run(["gio", "open", folder_path])
+
+def get_transcript_path(audio_file_path: str | None) -> str | None:
+    """Get the path to the transcript.md file in the same directory as the audio file.
+    
+    Args:
+        audio_file_path (str | None): Path to the audio file (e.g. recording.wav)
+        
+    Returns:
+        str | None: Path to the transcript.md file as string, or None if audio_file_path is None
+    """
+    from ..utils.logger import log
+    
+    if not audio_file_path:
+        return None
+        
+    audio_path = Path(audio_file_path)
+    transcript_path = audio_path.parent / "transcript.md"
+    
+    if not transcript_path.exists():
+        log.warning(f"Transcript file not found at: {transcript_path}")
+        
+    return str(transcript_path)

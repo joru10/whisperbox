@@ -4,6 +4,7 @@ from rich.console import Console
 from .audio import AudioRecorder
 from ..core.config import config
 from ..ai.transcribe import Shallowgram
+from ..ai.transcribe import export_to_markdown
 from ..utils.logger import log
 from ..utils.utils import create_session_dir
 import traceback
@@ -72,7 +73,7 @@ class RecordingManager:
 
         try:
             log.debug("=== Starting Recording Stop Sequence ===")
-            log.status("Stopping recorder...")
+            log.debug("Stopping recorder...")
             log.debug("Calling recorder.stop()...")
             self.recorder.stop()
             
@@ -84,7 +85,7 @@ class RecordingManager:
             log.debug("Recording saved successfully")
             self.is_recording = False
             self.is_paused = False
-            log.success(f"Recording saved to: {self.current_recording}")
+            log.save(f"Recording saved to: {self.current_recording}")
             
             log.debug("=== Starting Transcription Process ===")
             # Transcribe the recording
@@ -97,27 +98,14 @@ class RecordingManager:
                     log.error("Transcription returned no results")
                     return
                     
-                log.success("Transcription complete! Displaying results:")
                 log.debug("Saving results to markdown...")
                 
                 # Save raw whisper transcript
-                from ..ai.transcribe import export_to_markdown
                 export_to_markdown(result["text"], str(self.current_session_dir))
                 
                 # Save processed results to markdown
                 self._save_results_to_markdown(result)
 
-                # Display results
-                from ai.transcribe import display_rich_output
-
-                display_rich_output(
-                    result["text"],
-                    result["summary"],
-                    result["sentiment"],
-                    result["intent"],
-                    result["topics"],
-                )
-                
                 log.debug("=== Recording Process Complete ===")
                 # Return the path for potential further processing
                 return self.current_recording
@@ -145,14 +133,8 @@ class RecordingManager:
                 f.write(f"# {config.output.session_type.title()} Transcript\n\n")
                 f.write("## Transcript\n\n")
                 f.write(result["text"])
-                f.write("\n\n## Summary\n\n")
-                f.write(result["summary"])
-                f.write("\n\n## Analysis\n\n")
-                f.write(f"- **Sentiment**: {result['sentiment']}\n")
-                f.write(f"- **Intent**: {result['intent']}\n")
-                f.write(f"- **Topics**: {result['topics']}\n")
                 
-            log.success(f"Results saved to: {markdown_path}")
+            log.save(f"Results saved to: {markdown_path}")
         except Exception as e:
             log.error(f"Error saving markdown file: {e}")
             log.debug(traceback.format_exc())

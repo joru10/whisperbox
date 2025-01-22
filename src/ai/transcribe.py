@@ -137,9 +137,8 @@ def transcribe_audio(model_name, whisperfile_path, audio_file, verbose):
             log.warning("Warning: Transcription produced empty output")
             return None
 
-        if verbose:
-            log.header("Transcription output:")
-            log.info(stdout)
+        log.debug("Transcription output:")
+        log.debug(stdout)
 
         return stdout.strip()
 
@@ -189,71 +188,13 @@ def export_to_markdown(text, session_dir):
         f.write("# Raw Whisper Transcription\n\n")
         f.write(text)
 
-    log.success(f"Raw transcription saved to {file_path}")
+    log.save(f"Raw transcription saved to {file_path}")
 
 
 def get_sentiment_color(sentiment):
     return {"positive": "green3", "neutral": "gold1", "negative": "red1"}.get(
         sentiment, "white"
     )
-
-
-def display_rich_output(transcript, summary, sentiment, intent, topics):
-    # Print the ASCII art directly without a border
-    console.print(Text(ASCII_ART, style="bold blue"))
-
-    # Clean the transcript text
-    transcript_clean = "\n".join(
-        line.partition("]")[2].strip()
-        for line in transcript.split("\n")
-        if line.strip()
-    )
-
-    # Create panels using Panel with expand=True
-    transcript_panel = Panel(
-        transcript_clean,
-        title="Transcript",
-        border_style="cyan",
-        padding=(1, 2),
-        expand=True,
-    )
-
-    summary_panel = Panel(
-        summary,
-        title="Summary",
-        border_style="cyan",
-        padding=(1, 2),
-        expand=True,
-    )
-
-    # Analysis Results Table
-    analysis_table = Table(show_header=False, box=box.SIMPLE, expand=True)
-    analysis_table.add_column(style="bold", width=12)
-    analysis_table.add_column()
-    analysis_table.add_row(
-        "Sentiment:",
-        Text(sentiment.capitalize(), style=get_sentiment_color(sentiment)),
-    )
-    analysis_table.add_row("Intent:", Text(intent))
-    analysis_table.add_row("Topics:", Text(topics))
-
-    analysis_panel = Panel(
-        analysis_table,
-        title="Analysis Results",
-        border_style="cyan",
-        padding=(1, 2),
-        expand=True,
-    )
-
-    # Print panels sequentially
-    panels = [
-        transcript_panel,
-        summary_panel,
-        analysis_panel,
-    ]
-
-    for panel in panels:
-        console.print(panel)
 
 
 class Shallowgram:
@@ -265,7 +206,7 @@ class Shallowgram:
         self.ai_service = AIService()
 
     def transcribe(self, audio_file, model=DEFAULT_WHISPER_MODEL, full_analysis=False):
-        log.info(f"Starting transcription of {audio_file}")
+        log.debug(f"using file {audio_file}")
         if not os.path.exists(audio_file):
             raise FileNotFoundError(f"Audio file not found: {audio_file}")
 
@@ -281,29 +222,10 @@ class Shallowgram:
             log.info("Running Whisper transcription...")
             transcript = transcribe_audio(model, self.whisperfile_path, audio_file, True)  # Set verbose=True
             
-
             if not transcript:
                 log.error("Whisper returned empty transcript")
                 return None
 
-            # Get the session directory from the audio file path
-            session_dir = os.path.dirname(audio_file)
-            
-            if full_analysis:
-                log.info("Performing AI analysis...")
-                summary = summarize(transcript)
-                sentiment = analyze_sentiment(transcript)
-                intent = detect_intent(transcript)
-                topics = detect_topics(transcript)
-                
-                return {
-                    'text': transcript,
-                    'summary': summary,
-                    'sentiment': sentiment,
-                    'intent': intent,
-                    'topics': topics
-                }
-            
             return {'text': transcript}
 
         except Exception as e:
