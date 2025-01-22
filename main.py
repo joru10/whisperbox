@@ -9,7 +9,7 @@ from src.audio.recording_manager import RecordingManager
 from src.utils.logger import log
 from src.core.setup import setup
 from src.audio.audio import list_audio_devices
-from src.utils.utils import is_first_run, create_app_directory_structure
+from src.utils.utils import is_first_run, create_app_directory_structure, get_transcript_path
 from src.ai.process_transcript import process_transcript
 from src.ai.ai_service import AIService
 from src.utils.profile_parser import load_profile_yaml, get_available_profiles
@@ -46,16 +46,17 @@ def cli_mode(ai_provider=None, debug=False, profile=None):
     profile_data = {}
     if profile:
         profile_data = load_profile_yaml(profile)
-        logging.info(f"Loaded profile: {profile_data.get('name')}")
+        log.info(f"Using profile: {profile_data.get('name')}")
 
     # Define handler functions
     def start_recording():
         log.recording("Starting recording...")
         recording_manager.start_recording()
 
-    def stop_recording():
+    def stop_recording_and_process():
         log.recording("Stopping recording...")
-        transcript_path = recording_manager.stop_recording()
+        audio_file_path = recording_manager.stop_recording()
+        transcript_path = get_transcript_path(audio_file_path)
 
         if transcript_path and profile:
             logger.info(f"Processing transcript with profile: {profile}...")
@@ -81,7 +82,7 @@ def cli_mode(ai_provider=None, debug=False, profile=None):
 
     # Register handlers
     hotkey_manager.register_handler("start_recording", start_recording)
-    hotkey_manager.register_handler("stop_recording", stop_recording)
+    hotkey_manager.register_handler("stop_recording", stop_recording_and_process)
     hotkey_manager.register_handler("pause_recording", pause_recording)
 
     # Start hotkey listener in a separate thread
@@ -133,7 +134,7 @@ def cli_mode(ai_provider=None, debug=False, profile=None):
             recording_manager.stop_recording()
         hotkey_manager.stop()
 
-    log.warning("\nShutting down...")
+    log.info("\nShutting down...")
     if recording_manager.is_recording:
         recording_manager.stop_recording()
     hotkey_manager.stop()
