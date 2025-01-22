@@ -51,7 +51,13 @@ brew install ffmpeg
 sudo apt-get install ffmpeg
 ```
 
-4. Configure your API keys:
+4. Install BlackHole (MacOS only)
+
+```bash
+brew install blackhole-2ch
+```
+
+5. Configure your API keys:
    - Copy `config.yaml` to create your local configuration
    - Add your API keys for the services you plan to use:
      - OpenAI
