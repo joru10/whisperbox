@@ -7,3 +7,4 @@ prompt: >
 
 actions:
   - script: copy_to_clipboard
+  - script: output_to_terminal

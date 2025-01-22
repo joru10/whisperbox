@@ -10,13 +10,13 @@ from src.utils.logger import log
 from src.core.setup import setup
 from src.audio.audio import list_audio_devices
 from src.utils.utils import is_first_run, create_app_directory_structure
-from src.ai.process_transcript import process_transcript, get_available_processors
+from src.ai.process_transcript import process_transcript
 from src.ai.ai_service import AIService
-from src.utils.profile_parser import load_profile_yaml
+from src.utils.profile_parser import load_profile_yaml, get_available_profiles
 from src.utils.profile_executor import run_profile_actions
 
 
-def cli_mode(process_method=None, ai_provider=None, debug=False, profile=None):
+def cli_mode(ai_provider=None, debug=False, profile=None):
     """Run the application in CLI mode."""
     # Initialize logging
     log.debug_mode = debug or config.system.debug_mode
@@ -57,20 +57,11 @@ def cli_mode(process_method=None, ai_provider=None, debug=False, profile=None):
         log.recording("Stopping recording...")
         transcript_path = recording_manager.stop_recording()
 
-        # If --process flag is set and we have a transcript, process it
-        if process_method and transcript_path:
-            logger.info(f"Processing transcript with method: {process_method}...")
-            process_transcript(
-                transcript_path, method=process_method, ai_provider=ai_provider
-            )
-
-        # If --process flag is set and we have a transcript, process it
-        if process_method and transcript_path:
-            logger.info(f"Processing transcript with method: {process_method}...")
+        if transcript_path and profile:
+            logger.info(f"Processing transcript with profile: {profile}...")
             # run AI
             processed_output = process_transcript(
                 transcript_path,
-                method=process_method,
                 ai_provider=ai_provider,
                 prompt=profile_data.get("prompt", ""),
             )
@@ -172,17 +163,18 @@ def main():
     )
     parser.add_argument("--setup", action="store_true", help="Run setup wizard")
     parser.add_argument("--debug", action="store_true", help="Enable debug mode")
-
-    parser.add_argument(
-        "--process",
-        choices=get_available_processors(),
-        help="Process transcript with specified method after recording",
-    )
     parser.add_argument(
         "--ai-provider",
         choices=["ollama", "groq", "anthropic", "openai"],
         default="ollama",
         help="Specify which AI provider to use",
+    )
+    parser.add_argument(
+        "--profile",
+        help="Specify a YAML profile to use for processing",
+    )
+    parser.add_argument(
+        "--list-profiles", action="store_true", help="List available profiles"
     )
     args = parser.parse_args()
 
@@ -195,14 +187,22 @@ def main():
         return 0  # Exit after setup to ensure clean config loading
 
     if args.list_devices:
-
         list_audio_devices()
+    elif args.list_profiles:
+        profiles = get_available_profiles()
+        if profiles:
+            print("Available profiles:")
+            for profile in profiles:
+                print(f"  - {profile}")
+        else:
+            print("No profiles found")
+        return 0
     elif args.app:
         return app_mode()
     else:
         cli_mode(
-            process_method=args.process,
             ai_provider=args.ai_provider,
+            debug=args.debug,
             profile=args.profile,
         )
 

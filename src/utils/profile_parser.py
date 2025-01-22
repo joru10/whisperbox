@@ -2,6 +2,7 @@
 
 import os
 import yaml
+from ..core.config import config
 
 
 def load_profile_yaml(profile_name: str):
@@ -42,3 +43,17 @@ def load_profile_yaml(profile_name: str):
         action.setdefault("config", {})
 
     return data
+
+
+def get_available_profiles():
+    """Return a list of available profile names."""
+    profiles_dir = config.output.profiles_directory
+    print(f"Debug - profiles_dir: {profiles_dir}")
+    if not profiles_dir or not os.path.exists(profiles_dir):
+        return []
+
+    profiles = []
+    for file in os.listdir(profiles_dir):
+        if file.endswith(".yaml") or file.endswith(".yml"):
+            profiles.append(os.path.splitext(file)[0])
+    return profiles

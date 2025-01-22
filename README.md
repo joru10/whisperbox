@@ -64,12 +64,29 @@ sudo apt-get install ffmpeg
 
 ## Usage
 
+### Setup
+
+The first time you run the app, you will go through the setup wizard.
+
+```bash
+poetry run wb
+```
+
+Then select the Whisper model you want to use. The smaller models are faster and quicker to download but the larger models are more accurate.
+Download times will vary depending on your internet speed.
+
+Then select the AI provider you want to use. Ollama runs locally and does not require an API key.
+
+Then select the model you want to use.
+
+Then you will have the option to view the config file location so you can customize additional settings. This directory also contains the whisper models you downloaded, the meeting, and the monologues.
+
 ### Basic Transcription
 
 1. Start recording:
 
 ```bash
-poetry run transcribe
+poetry run wb
 ```
 
 2. Press Enter to stop recording when finished.
