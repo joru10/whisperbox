@@ -1,45 +1,24 @@
 from rich.console import Console
 from .ai_service import AIService
-from ..core.config import config
-from typing import Optional, List
+from typing import Optional
 
 console = Console()
 
 
-def get_available_processors() -> List[str]:
-    """Get list of available processing methods from config."""
-    try:
-        if not hasattr(config.ai, 'prompts') or not hasattr(config.ai.prompts, 'processing'):
-            return []
-        
-        processing = getattr(config.ai.prompts, 'processing', {})
-        if processing is None:
-            return []
-            
-        # If it's already a dict-like object with keys(), use it directly
-        if hasattr(processing, 'keys'):
-            return list(processing.keys())
-            
-        return []
-        
-    except Exception as e:
-        console.print(f"[red]Error getting processors: {str(e)}[/red]")
-        return []
-
-
 def process_transcript(
     transcript_path: str,
-    method: Optional[str] = None,
     ai_provider: Optional[str] = None,
     prompt: Optional[str] = None,
-) -> None:
+) -> str:
     """Process a transcript with AI to generate additional insights.
 
     Args:
         transcript_path (str): Path to the markdown transcript file
-        method (str, optional): Processing method to use. Must be one defined in config.ai.prompts.processing
         ai_provider (str, optional): AI provider to use (ollama, groq, anthropic, or openai)
         prompt (str, optional): Custom prompt to use for processing
+
+    Returns:
+        str: The processed result from the AI
     """
     try:
         with open(transcript_path, "r") as f:
@@ -48,35 +27,16 @@ def process_transcript(
         # Remove the markdown header to get clean text
         clean_text = transcript_text.replace("# Meeting Transcription\n\n", "").strip()
 
-        # Use custom prompt if provided, otherwise get from config
-        if prompt:
-            final_prompt = prompt.format(text=clean_text)
-        else:
-            if not method or not hasattr(config.ai.prompts.processing, method):
-                available = get_available_processors()
-                raise ValueError(
-                    f"Unknown processing method: {method}. Available methods: {', '.join(available)}"
-                )
-            final_prompt = config.ai.prompts.processing[method].format(text=clean_text)
+        if not prompt:
+            raise ValueError("No prompt provided for processing")
+
+        final_prompt = prompt.format(text=clean_text)
 
         # Process with AI service
         ai_service = AIService(service_type=ai_provider)
         result = ai_service.query(final_prompt)
 
-        # Save the processed result
-        output_path = transcript_path.replace(".md", f"_{method}.md")
-        with open(output_path, "w") as f:
-            title = (
-                "Whisperbox Output"
-                if method is None
-                else f"Whisperbox Output ({method.replace('-', ' ').title()})"
-            )
-            f.write(f"# {title}\n\n")
-            f.write(result)
-
-        console.print(
-            f"[green]Processed transcript ({method}) saved to: {output_path}[/green]"
-        )
+        return result
 
     except Exception as e:
         console.print(f"[red]Error processing transcript: {str(e)}[/red]")

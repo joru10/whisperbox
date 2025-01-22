@@ -6,5 +6,4 @@ prompt: >
 actions:
   - script: send_post_request
     config:
-      url: "https://enx6oz.d.reqbin.com/xyz123"
-  - script: output_to_terminal
+      url: "https://eo7zh40rnrz4gvb.m.pipedream.net"
