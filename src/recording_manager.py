@@ -5,6 +5,7 @@ from .audio import AudioRecorder
 from .config import config
 from .transcribe import Shallowgram
 from .logger import log
+import traceback
 
 console = Console()
 
@@ -65,7 +66,7 @@ class RecordingManager:
                     log.error("Transcription returned no results")
                     return
                     
-                log.success("Transcription complete!")
+                log.success("Transcription complete! Displaying results:")
                 
                 # Display results
                 from .transcribe import display_rich_output
@@ -77,11 +78,16 @@ class RecordingManager:
                     result['topics']
                 )
                 
+                # Return the path for potential further processing
+                return self.current_recording
+                
             except Exception as e:
                 log.error(f"Error during transcription: {e}")
+                log.debug(traceback.format_exc())
             
         except Exception as e:
             log.error(f"Error stopping recording: {e}")
+            log.debug(traceback.format_exc())
 
     def toggle_pause(self):
         """Toggle recording pause state."""

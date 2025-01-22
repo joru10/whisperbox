@@ -159,12 +159,22 @@ def detect_topics(text):
     prompt = config.ai.prompts.topics.format(text=text)
     return ai_service.query(prompt)
 
-def export_to_markdown(content, vault_path, filename):
-    os.makedirs(vault_path, exist_ok=True)
-    file_path = os.path.join(vault_path, f"{filename}.md")
+def export_to_markdown(text, filename):
+    """Export transcription text to a markdown file in the transcriptions directory.
+
+    Args:
+        text (str): The transcription text
+        filename (str): Name of the file without extension
+    """
+    # Create transcriptions directory if it doesn't exist
+    os.makedirs("transcriptions", exist_ok=True)
+    file_path = os.path.join("transcriptions", f"{filename}.md")
+
     with open(file_path, "w") as f:
-        f.write(content)
-    log.success(f"Exported to {file_path}")
+        f.write("# Meeting Transcription\n\n")
+        f.write(text)
+
+    log.success(f"Transcription saved to {file_path}")
 
 def get_sentiment_color(sentiment):
     return {
@@ -256,6 +266,10 @@ class Shallowgram:
             if not transcript:
                 log.error("Whisper returned empty transcript")
                 return None
+
+            # Save transcription to markdown file
+            timestamp = time.strftime("%Y%m%d-%H%M%S")
+            export_to_markdown(transcript, f"meeting_{timestamp}")
 
             if full_analysis:
                 log.info("Performing AI analysis...")
