@@ -6,8 +6,8 @@ import sys
 import threading
 from array import array
 from pydub import AudioSegment
-from .logger import log
-from .config import config
+from ..utils.logger import log
+from ..core.config import config
 from rich.prompt import Prompt
 from rich.console import Console
 import yaml

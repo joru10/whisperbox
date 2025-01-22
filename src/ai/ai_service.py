@@ -5,7 +5,7 @@ import ollama
 from openai import OpenAI
 from pydantic import BaseModel
 import json
-from .config import config
+from ..core.config import config
 
 T = TypeVar('T', bound=BaseModel)
 

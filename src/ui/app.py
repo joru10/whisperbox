@@ -2,9 +2,9 @@ import toga
 from toga.style import Pack
 from toga.style.pack import COLUMN, ROW
 from threading import Thread
-from audio.recording_manager import RecordingManager
-from utils.hotkeys import HotkeyManager
-from core.config import config
+from ..audio.recording_manager import RecordingManager
+from ..utils.hotkeys import HotkeyManager
+from ..core.config import config
 import time
 
 class TranscriberApp(toga.App):

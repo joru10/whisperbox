@@ -2,9 +2,9 @@ import os
 from datetime import datetime
 from rich.console import Console
 from .audio import AudioRecorder
-from core.config import config
-from ai.transcribe import Shallowgram
-from utils.logger import log
+from ..core.config import config
+from ..ai.transcribe import Shallowgram
+from ..utils.logger import log
 import traceback
 
 console = Console()

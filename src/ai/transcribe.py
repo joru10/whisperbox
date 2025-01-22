@@ -16,9 +16,9 @@ import select
 import sys
 from .ai_service import AIService
 from urllib.request import urlretrieve
-from core.config import config
-from audio.audio import AudioRecorder, convert_to_wav
-from utils.logger import log
+from ..core.config import config
+from ..audio.audio import AudioRecorder, convert_to_wav
+from ..utils.logger import log
 console = Console()
 
 OLLAMA_MODEL = config.ai.default_model

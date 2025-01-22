@@ -1,6 +1,6 @@
 from rich.console import Console
 from .ai_service import AIService
-from .config import config
+from ..core.config import config
 from typing import Optional, List
 
 console = Console()
