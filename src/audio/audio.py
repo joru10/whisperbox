@@ -115,61 +115,97 @@ class AudioRecorder:
         
     def _record(self):
         """Record audio in chunks."""
+        log.debug("Starting recording thread")
         while not self._stop_event.is_set():
             if not self.is_paused:
                 try:
-                    # Use a timeout when reading
-                    if self.mic_stream.is_active():
+                    # Check if streams are still active
+                    if not self.mic_stream or not self.mic_stream.is_active():
+                        log.debug("Microphone stream no longer active")
+                        break
+
+                    # Use a timeout when reading to make the thread more responsive to stop events
+                    try:
                         mic_data = self.mic_stream.read(config.audio.chunk_size, exception_on_overflow=False)
-                    else:
-                        break  # Stream is no longer active
-                    
+                    except Exception as e:
+                        log.debug(f"Error reading from mic stream: {e}")
+                        break
+
                     # Read from system audio if available
                     system_data = None
                     if self.system_stream and self.system_stream.is_active():
-                        system_data = self.system_stream.read(config.audio.chunk_size, exception_on_overflow=False)
-                    
+                        try:
+                            system_data = self.system_stream.read(config.audio.chunk_size, exception_on_overflow=False)
+                        except Exception as e:
+                            log.debug(f"Error reading from system stream: {e}")
+                            system_data = None
+
                     # Mix the audio if we have both streams
                     if system_data:
                         mixed_data = self._mix_audio(mic_data, system_data)
                         self.frames.append(mixed_data)
                     else:
                         self.frames.append(mic_data)
-                        
+
                 except Exception as e:
                     log.warning(f"Warning in recording thread: {str(e)}")
                     if "Input overflowed" not in str(e):  # Ignore overflow warnings
+                        log.debug(f"Recording thread error: {str(e)}")
                         break  # Exit on other errors
-                    
+
+            # Add a small sleep to make the thread more responsive to stop events
+            if self._stop_event.wait(0.001):  # 1ms wait
+                log.debug("Stop event detected in recording thread")
+                break
+
+        log.debug("Recording thread exiting")
         log.warning("Recording thread stopped")
     
     def stop(self):
         """Stop recording and save to file."""
         if not self.is_recording:
+            log.debug("Stop called but not recording")
             return
             
+        log.debug("=== Audio Recorder Stop Sequence ===")
         log.status("Stopping recording thread...")
+        
+        # First stop the streams to prevent any more data from being read
+        log.debug("Stopping audio streams...")
+        if hasattr(self, 'mic_stream') and self.mic_stream:
+            log.debug("Stopping microphone stream...")
+            self.mic_stream.stop_stream()
+            log.debug("Microphone stream stopped")
+        if hasattr(self, 'system_stream') and self.system_stream:
+            log.debug("Stopping system stream...")
+            self.system_stream.stop_stream()
+            log.debug("System stream stopped")
+
+        # Now set the stop event
+        log.debug("Setting stop event...")
         self._stop_event.set()
         
-        # Stop streams first
-        if hasattr(self, 'mic_stream') and self.mic_stream:
-            self.mic_stream.stop_stream()
-        if hasattr(self, 'system_stream') and self.system_stream:
-            self.system_stream.stop_stream()
-        
-        # Now join the thread
+        # Now join the thread with a shorter timeout
         if hasattr(self, 'record_thread'):
-            self.record_thread.join(timeout=2.0)
+            log.debug("Waiting for recording thread to finish...")
+            self.record_thread.join(timeout=0.5)  # Reduced timeout to 500ms
             if self.record_thread.is_alive():
-                log.error("Warning: Recording thread did not stop cleanly")
+                log.warning("Recording thread still alive after timeout, proceeding anyway")
+            else:
+                log.debug("Recording thread joined successfully")
         
-        log.status("Closing audio streams...")
+        log.debug("Closing audio streams...")
         if hasattr(self, 'mic_stream') and self.mic_stream:
+            log.debug("Closing microphone stream...")
             self.mic_stream.close()
+            log.debug("Microphone stream closed")
         if hasattr(self, 'system_stream') and self.system_stream:
+            log.debug("Closing system stream...")
             self.system_stream.close()
+            log.debug("System stream closed")
             
         self.is_recording = False
+        log.debug("=== Audio Recorder Stop Complete ===")
         log.success("Recording stopped successfully")
         
     def save(self, output_file):

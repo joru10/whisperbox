@@ -1,7 +1,7 @@
 import os
 import yaml
 from typing import Dict, Any, Optional
-from ..utils.utils import get_config_path, get_recordings_dir, get_transcripts_dir, get_models_dir, save_config, load_config
+from ..utils.utils import get_config_path, get_meetings_dir, get_monologues_dir, get_models_dir, save_config, load_config
 
 DEFAULT_CONFIG = {
     'commands': {
@@ -27,9 +27,23 @@ DEFAULT_CONFIG = {
         'stop_recording': 'ctrl+s',
         'pause_recording': 'ctrl+shift+p',
     },
+    'audio': {
+        'format': 'wav',
+        'channels': 2,
+        'sample_rate': 44100,
+        'chunk_size': 1024,
+        'capture_system_audio': True,
+        'devices': {
+            'microphone': None  # Will be set during device selection
+        }
+    },
     'output': {
-        'audio_directory': str(get_recordings_dir()),
-        'transcript_directory': str(get_transcripts_dir()),
+        'session_type': 'meeting',  # or 'monologue'
+        'meetings_directory': str(get_meetings_dir()),
+        'monologues_directory': str(get_monologues_dir()),
+        'timestamp_format': '%Y-%m-%d_%H-%M-%S',
+        'save_audio': True,
+        'file_format': 'md'
     },
     'transcription': {
         'whisper': {
@@ -58,8 +72,8 @@ class Config:
         self._config.update(file_config)
             
         # Create directories if they don't exist
-        os.makedirs(self.output.audio_directory, exist_ok=True)
-        os.makedirs(self.output.transcript_directory, exist_ok=True)
+        os.makedirs(self.output.meetings_directory, exist_ok=True)
+        os.makedirs(self.output.monologues_directory, exist_ok=True)
         os.makedirs(self.system.temp_directory, exist_ok=True)
         
         # Load API keys from environment variables if available

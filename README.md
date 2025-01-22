@@ -1,4 +1,4 @@
-# Hacker Transcriber
+# WhisperBox
 
 A powerful command-line tool for transcribing and analyzing audio recordings with AI assistance. Record meetings, lectures, or any audio directly from your terminal and get instant transcriptions with summaries, sentiment analysis, and topic detection.
 
@@ -31,8 +31,8 @@ A powerful command-line tool for transcribing and analyzing audio recordings wit
 1. Clone the repository:
 
 ```bash
-git clone https://github.com/yourusername/hacker-transcriber.git
-cd hacker-transcriber
+git clone https://github.com/tooluseai/whisperbox.git
+cd whisperbox
 ```
 
 2. Install dependencies using Poetry:
@@ -116,7 +116,7 @@ See the example `config.yaml` for all available options.
 ## Project Structure
 
 ```
-hacker-transcriber/
+whisperbox/
 ├── pyproject.toml       # Poetry project configuration
 ├── config.yaml         # Application configuration
 ├── main.py            # Entry point

@@ -4,6 +4,7 @@ from pathlib import Path
 from typing import Dict, Any, Union
 import platform
 import subprocess
+from datetime import datetime
 # Application name - this will be used for the app directory
 APP_NAME = "WhisperBox"
 
@@ -16,17 +17,32 @@ def get_config_path() -> Path:
     """Get the path to the config file."""
     return get_app_dir() / "config.yaml"
 
-def get_recordings_dir() -> Path:
-    """Get the recordings directory path."""
-    return get_app_dir() / "recordings"
+def get_meetings_dir() -> Path:
+    """Get the meetings directory path."""
+    return get_app_dir() / "meetings"
 
-def get_transcripts_dir() -> Path:
-    """Get the transcripts directory path."""
-    return get_app_dir() / "transcripts"
+def get_monologues_dir() -> Path:
+    """Get the monologues directory path."""
+    return get_app_dir() / "monologues"
 
 def get_models_dir() -> Path:
     """Get the models directory path."""
     return get_app_dir() / "models"
+
+def create_session_dir(session_type: str) -> Path:
+    """Create a new directory for a meeting or monologue session.
+    
+    Args:
+        session_type (str): Either 'meeting' or 'monologue'
+        
+    Returns:
+        Path: Path to the created session directory
+    """
+    timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+    base_dir = get_meetings_dir() if session_type == "meeting" else get_monologues_dir()
+    session_dir = base_dir / timestamp
+    session_dir.mkdir(parents=True, exist_ok=True)
+    return session_dir
 
 def is_first_run() -> bool:
     """Check if this is the first time the app is being run."""
@@ -36,11 +52,11 @@ def create_app_directory_structure() -> None:
     """Create the application directory structure."""
     # Create main app directory in Documents
     app_dir = get_app_dir()
-    app_dir.mkdir(exist_ok=True, parents=True)  # parents=True in case Documents doesn't exist
+    app_dir.mkdir(exist_ok=True, parents=True)
     
-    # Create subdirectories
-    get_recordings_dir().mkdir(exist_ok=True)
-    get_transcripts_dir().mkdir(exist_ok=True)
+    # Create main subdirectories
+    get_meetings_dir().mkdir(exist_ok=True)
+    get_monologues_dir().mkdir(exist_ok=True)
     get_models_dir().mkdir(exist_ok=True)
 
 def save_config(config: Dict[str, Any]) -> None:

@@ -8,7 +8,23 @@ console = Console()
 
 def get_available_processors() -> List[str]:
     """Get list of available processing methods from config."""
-    return list(config.ai.prompts.processing.keys())
+    try:
+        if not hasattr(config.ai, 'prompts') or not hasattr(config.ai.prompts, 'processing'):
+            return []
+        
+        processing = getattr(config.ai.prompts, 'processing', {})
+        if processing is None:
+            return []
+            
+        # If it's already a dict-like object with keys(), use it directly
+        if hasattr(processing, 'keys'):
+            return list(processing.keys())
+            
+        return []
+        
+    except Exception as e:
+        console.print(f"[red]Error getting processors: {str(e)}[/red]")
+        return []
 
 
 def process_transcript(

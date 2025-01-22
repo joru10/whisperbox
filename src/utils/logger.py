@@ -99,7 +99,7 @@ class Logger:
     def show_recording_status(self, is_recording: bool, is_paused: bool):
         """Show the current recording status."""
         if is_recording:
-            status = "⏸️  Paused" if is_paused else "⏺️  Recording..."
+            status = "⏸️  Paused" if is_paused else "🔴  Recording..."
             style = "warning" if is_paused else "recording"
         else:
             status = "⏹️  Ready"

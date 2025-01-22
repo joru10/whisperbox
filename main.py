@@ -10,16 +10,16 @@ from src.utils.logger import log
 from src.core.setup import setup
 from src.audio.audio import list_audio_devices
 from src.utils.utils import is_first_run, create_app_directory_structure
-from src.ai.process import process_transcript, get_available_processors
+from src.ai.process_transcript import process_transcript, get_available_processors
 from src.ai.ai_service import AIService
 from src.utils.profile_parser import load_profile_yaml
 from src.utils.profile_executor import run_profile_actions
 
 
-def cli_mode(process_method=None, ai_provider=None, profile=None):
+def cli_mode(process_method=None, ai_provider=None, debug=False, profile=None):
     """Run the application in CLI mode."""
     # Initialize logging
-    log.debug_mode = config.system.debug_mode
+    log.debug_mode = debug or config.system.debug_mode
 
     logging.basicConfig(
         level=logging.INFO if not config.system.debug_mode else logging.DEBUG
@@ -38,7 +38,6 @@ def cli_mode(process_method=None, ai_provider=None, profile=None):
     if ai_provider:
         try:
             ai_service = AIService(service_type=ai_provider)
-            logger.info(f"Using AI provider: {ai_provider}")
         except ValueError as e:
             logger.error(f"Error initializing AI service: {e}")
             return
@@ -172,6 +171,7 @@ def main():
         "--list-devices", action="store_true", help="List available audio devices"
     )
     parser.add_argument("--setup", action="store_true", help="Run setup wizard")
+    parser.add_argument("--debug", action="store_true", help="Enable debug mode")
 
     parser.add_argument(
         "--process",
