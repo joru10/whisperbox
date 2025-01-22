@@ -1,0 +1,12 @@
+name: meeting_to_blogpost
+prompt: >
+  Take the following meeting transcript and convert it into a blog post.
+  The blog post should be a high-level summary of the meeting with key lessons learned.
+  The target of the blog post is someone in the public who is interested in the topic of the meeting.
+
+actions:
+  - script: copy_to_clipboard
+  - script: output_to_markdown
+    config:
+      filename: "blogpost.md"
+      session_dir: "{{ session_dir }}"
