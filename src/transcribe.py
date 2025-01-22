@@ -18,7 +18,7 @@ from .ai_service import AIService
 from urllib.request import urlretrieve
 from .config import config
 from .audio import AudioRecorder, convert_to_wav
-
+from .logger import log
 console = Console()
 
 OLLAMA_MODEL = config.ai.default_model
@@ -34,9 +34,9 @@ def check_ffmpeg():
         subprocess.run(['ffmpeg', '-version'], capture_output=True, check=True)
         return True
     except (subprocess.CalledProcessError, FileNotFoundError):
-        console.print("[red]Error: FFmpeg is not installed.[/red]")
-        console.print("[yellow]Please install FFmpeg using:[/yellow]")
-        console.print("  brew install ffmpeg")
+        log.error("Error: FFmpeg is not installed.")
+        log.warning("Please install FFmpeg using:")
+        log.info("  brew install ffmpeg")
         return False
 
 def install_whisper_model(model_name, whisperfile_path):
@@ -47,13 +47,25 @@ def install_whisper_model(model_name, whisperfile_path):
     # Create the directory if it doesn't exist
     os.makedirs(whisperfile_path, exist_ok=True)
     
-    console.print(f"[yellow]Downloading {full_model_name}...[/yellow]")
+    log.info(f"Downloading {full_model_name}...")
+    # Create a progress bar
+    progress = console.status("[bold green]Downloading...", spinner="dots")
+    progress.start()
+    
+    def show_progress(block_num, block_size, total_size):
+        if total_size > 0:
+            downloaded = block_num * block_size
+            percent = min((downloaded / total_size) * 100, 100)
+            progress.update(f"[bold green]Downloading... {percent:.1f}%")
+    
     try:
-        urlretrieve(url, output_path)
+        urlretrieve(url, output_path, show_progress)
+        progress.stop()
         os.chmod(output_path, 0o755)
-        console.print(f"[green]{full_model_name} installed successfully.[/green]")
+        log.success(f"{full_model_name} installed successfully.")
     except Exception as e:
-        console.print(f"[red]Error downloading model: {str(e)}[/red]")
+        progress.stop()
+        log.error(f"Error downloading model: {str(e)}")
         raise
 
 def get_whisper_model_path(model_name, whisperfile_path, verbose):
@@ -62,23 +74,23 @@ def get_whisper_model_path(model_name, whisperfile_path, verbose):
     whisperfile_path = os.path.expanduser(whisperfile_path)
     model_path = os.path.join(whisperfile_path, full_model_name)
     
-    console.print(f"[yellow]Looking for Whisper model at: {model_path}[/yellow]")
+    log.info(f"Looking for Whisper model at: {model_path}")
     
     if not os.path.exists(model_path):
-        console.print(f"[yellow]Whisper model {full_model_name} not found.[/yellow]")
-        console.print(f"[yellow]Would you like to download it from {WHISPER_BASE_URL}?[/yellow]")
+        log.warning(f"Whisper model {full_model_name} not found.")
+        log.warning(f"Would you like to download it from {WHISPER_BASE_URL}?")
         if input("Download model? (y/n): ").lower() == "y":
             install_whisper_model(model_name, whisperfile_path)
         else:
             raise FileNotFoundError(f"Whisper model {full_model_name} not found and download was declined.")
     else:
-        console.print(f"[green]Found Whisper model at: {model_path}[/green]")
+        log.success(f"Found Whisper model at: {model_path}")
         
     # Check if the file is executable
     if not os.access(model_path, os.X_OK):
-        console.print("[yellow]Making model file executable...[/yellow]")
+        log.warning("Making model file executable...")
         os.chmod(model_path, 0o755)
-        
+            
     return model_path
 
 def transcribe_audio(model_name, whisperfile_path, audio_file, verbose):
@@ -88,13 +100,13 @@ def transcribe_audio(model_name, whisperfile_path, audio_file, verbose):
         command = f"{model_path} -f {audio_file} {gpu_flag}"
 
         if verbose:
-            console.print(f"[yellow]Attempting to run command: {command}[/yellow]")
+            log.info(f"Attempting to run command: {command}")
 
         # Check if file exists and is readable
         if not os.path.exists(audio_file):
             raise FileNotFoundError(f"Audio file not found: {audio_file}")
             
-        console.print(f"[yellow]Running transcription command...[/yellow]")
+        log.info("Running transcription command...")
         process = subprocess.Popen(
             command, 
             shell=True, 
@@ -106,23 +118,24 @@ def transcribe_audio(model_name, whisperfile_path, audio_file, verbose):
         stdout, stderr = process.communicate()
 
         if process.returncode != 0:
-            console.print(f"[red]Command failed with return code {process.returncode}[/red]")
-            console.print(f"[red]Error output: {stderr}[/red]")
+            log.error(f"Command failed with return code {process.returncode}")
+            log.error(f"Error output: {stderr}")
             raise Exception(f"Transcription failed: {stderr}")
 
         if not stdout.strip():
-            console.print("[red]Warning: Transcription produced empty output[/red]")
+            log.warning("Warning: Transcription produced empty output")
             return None
 
         if verbose:
-            console.print(f"[green]Transcription output:[/green]\n{stdout}")
+            log.header("Transcription output:")
+            log.info(stdout)
 
         return stdout.strip()
 
     except Exception as e:
-        console.print(f"[red]Error in transcribe_audio: {str(e)}[/red]")
+        log.error(f"Error in transcribe_audio: {str(e)}")
         import traceback
-        console.print(f"[red]{traceback.format_exc()}[/red]")
+        log.error(f"{traceback.format_exc()}")
         raise
 
 def summarize(text):
@@ -151,7 +164,7 @@ def export_to_markdown(content, vault_path, filename):
     file_path = os.path.join(vault_path, f"{filename}.md")
     with open(file_path, "w") as f:
         f.write(content)
-    console.print(f"[green]Exported to {file_path}[/green]")
+    log.success(f"Exported to {file_path}")
 
 def get_sentiment_color(sentiment):
     return {
@@ -224,28 +237,28 @@ class Shallowgram:
         self.ai_service = AIService()
 
     def transcribe(self, audio_file, model=DEFAULT_WHISPER_MODEL, full_analysis=False):
-        console.print(f"[yellow]Starting transcription of {audio_file}[/yellow]")
+        log.info(f"Starting transcription of {audio_file}")
         if not os.path.exists(audio_file):
             raise FileNotFoundError(f"Audio file not found: {audio_file}")
 
         # Convert to wav if needed
         file_ext = os.path.splitext(audio_file)[1].lower()
         if file_ext != ".wav":
-            console.print("[yellow]Converting audio to WAV format...[/yellow]")
+            log.info("Converting audio to WAV format...")
             wav_file = "temp_audio.wav"
             convert_to_wav(audio_file, wav_file)
             audio_file = wav_file
 
         try:
-            console.print("[yellow]Running Whisper transcription...[/yellow]")
+            log.info("Running Whisper transcription...")
             transcript = transcribe_audio(model, self.whisperfile_path, audio_file, True)  # Set verbose=True
             
             if not transcript:
-                console.print("[red]Whisper returned empty transcript[/red]")
+                log.error("Whisper returned empty transcript")
                 return None
 
             if full_analysis:
-                console.print("[yellow]Performing AI analysis...[/yellow]")
+                log.info("Performing AI analysis...")
                 summary = summarize(transcript)
                 sentiment = analyze_sentiment(transcript)
                 intent = detect_intent(transcript)
@@ -262,7 +275,7 @@ class Shallowgram:
             return {'text': transcript}
 
         except Exception as e:
-            console.print(f"[red]Error in transcription: {str(e)}[/red]")
+            log.error(f"Error in transcription: {str(e)}")
             raise
         finally:
             # Cleanup temporary file

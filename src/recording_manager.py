@@ -4,6 +4,7 @@ from rich.console import Console
 from .audio import AudioRecorder
 from .config import config
 from .transcribe import Shallowgram
+from .logger import log
 
 console = Console()
 
@@ -26,7 +27,7 @@ class RecordingManager:
     def start_recording(self):
         """Start a new recording if not already recording."""
         if self.is_recording:
-            console.print("[yellow]Recording is already in progress[/yellow]")
+            log.error("Recording already in progress")
             return
             
         self.current_recording = self._get_output_filename()
@@ -35,38 +36,36 @@ class RecordingManager:
         try:
             self.recorder.start()
             self.is_recording = True
-            recording_color = getattr(config.display.colors, "recording", "yellow")
-            console.print(f"[{recording_color}]Recording started...[/]")
+            log.show_recording_status(True, False)
         except Exception as e:
-            error_color = getattr(config.display.colors, "error", "red")
-            console.print(f"[{error_color}]Error starting recording: {e}[/]")
+            log.error(f"Error starting recording: {e}")
 
     def stop_recording(self):
         """Stop the current recording and transcribe it."""
         if not self.is_recording:
-            console.print("[yellow]No recording in progress[/yellow]")
+            log.error("No recording in progress")
             return
 
         try:
-            console.print("[yellow]Stopping recorder...[/yellow]")
+            log.status("Stopping recorder...")
             self.recorder.stop()
-            console.print("[yellow]Saving recording...[/yellow]")
+            log.status("Saving recording...")
             self.recorder.save(self.current_recording)
             self.is_recording = False
             self.is_paused = False
-            console.print(f"[{config.display.colors.success}]Recording saved to: {self.current_recording}[/]")
+            log.success(f"Recording saved to: {self.current_recording}")
             
             # Transcribe the recording
-            console.print("[yellow]Starting transcription process...[/yellow]")
+            log.transcribing("Starting transcription...")
             try:
-                console.print(f"[yellow]Using Whisper model: {config.transcription.whisper.model}[/yellow]")
+                log.info(f"Using Whisper model: {config.transcription.whisper.model}")
                 result = self.transcriber.transcribe(self.current_recording, full_analysis=True)
                 
                 if not result:
-                    console.print("[red]Transcription returned no results[/red]")
+                    log.error("Transcription returned no results")
                     return
                     
-                console.print("[green]Transcription complete! Displaying results:[/green]")
+                log.success("Transcription complete!")
                 
                 # Display results
                 from .transcribe import display_rich_output
@@ -79,20 +78,17 @@ class RecordingManager:
                 )
                 
             except Exception as e:
-                console.print(f"[red]Error during transcription: {str(e)}[/red]")
-                import traceback
-                console.print(f"[red]{traceback.format_exc()}[/red]")
+                log.error(f"Error during transcription: {e}")
             
         except Exception as e:
-            console.print(f"[{config.display.colors.error}]Error stopping recording: {str(e)}[/]")
+            log.error(f"Error stopping recording: {e}")
 
     def toggle_pause(self):
         """Toggle recording pause state."""
         if not self.is_recording:
-            console.print("[yellow]No recording in progress[/yellow]")
+            log.warning("No recording in progress")
             return
 
         self.is_paused = not self.is_paused
         self.recorder.is_paused = self.is_paused
-        status = "paused" if self.is_paused else "resumed"
-        console.print(f"[{config.display.colors.system}]Recording {status}[/]") 
+        log.show_recording_status(True, self.is_paused) 

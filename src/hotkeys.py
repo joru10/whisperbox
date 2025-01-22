@@ -35,7 +35,7 @@ class HotkeyManager:
             return
 
         hotkey_combo = self._parse_hotkey(hotkey)
-        self.handlers[str(hotkey_combo)] = handler  # Convert frozenset to string
+        self.handlers[str(hotkey_combo)] = handler
         self.logger.debug(f"Registered hotkey {hotkey} for action {action}")
 
     def _on_press(self, key):
