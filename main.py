@@ -7,6 +7,7 @@ from src.audio import list_audio_devices
 from src.utils import is_first_run, create_app_directory_structure
 from src.process import process_transcript, get_available_processors
 from src.ai_service import AIService
+
 import argparse
 import time
 from threading import Thread
@@ -17,6 +18,7 @@ def cli_mode(process_method=None, ai_provider=None):
     """Run the application in CLI mode."""
     # Initialize logging
     log.debug_mode = config.system.debug_mode
+
     logging.basicConfig(
         level=logging.INFO if not config.system.debug_mode else logging.DEBUG
     )
@@ -39,11 +41,7 @@ def cli_mode(process_method=None, ai_provider=None):
             logger.error(f"Error initializing AI service: {e}")
             return
 
-    # # UI update thread
-    # def update_ui():
-    #     while not hotkey_manager._stop_event.is_set():
-    #         ui.update_content()
-    #         time.sleep(0.1)
+
 
     # Define handler functions
     def start_recording():
@@ -53,6 +51,14 @@ def cli_mode(process_method=None, ai_provider=None):
     def stop_recording():
         log.recording("Stopping recording...")
         transcript_path = recording_manager.stop_recording()
+
+        # If --process flag is set and we have a transcript, process it
+        if process_method and transcript_path:
+            logger.info(f"Processing transcript with method: {process_method}...")
+            process_transcript(
+                transcript_path, method=process_method, ai_provider=ai_provider
+            )
+
 
         # If --process flag is set and we have a transcript, process it
         if process_method and transcript_path:
@@ -139,6 +145,7 @@ def main():
     parser.add_argument('--app', action='store_true', help='Launch in GUI mode')
     parser.add_argument('--list-devices', action='store_true', help='List available audio devices')
     parser.add_argument('--setup', action='store_true', help='Run setup wizard')
+
     parser.add_argument(
         "--process",
         choices=get_available_processors(),
@@ -161,6 +168,7 @@ def main():
         return 0  # Exit after setup to ensure clean config loading
     
     if args.list_devices:
+
         list_audio_devices()
     elif args.app:
         return app_mode()
@@ -169,3 +177,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+

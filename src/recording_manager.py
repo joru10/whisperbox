@@ -9,6 +9,7 @@ import traceback
 
 console = Console()
 
+
 class RecordingManager:
     def __init__(self):
         self.is_recording = False
@@ -16,13 +17,13 @@ class RecordingManager:
         self.current_recording = None
         self.recorder = AudioRecorder()
         self.transcriber = Shallowgram()
-        
+
     def _get_output_filename(self):
         """Generate output filename based on timestamp."""
         timestamp = datetime.now().strftime(config.output.timestamp_format)
         return os.path.join(
             config.output.audio_directory,
-            f"recording_{timestamp}.{config.audio.format}"
+            f"recording_{timestamp}.{config.audio.format}",
         )
 
     def start_recording(self):
@@ -30,10 +31,10 @@ class RecordingManager:
         if self.is_recording:
             log.error("Recording already in progress")
             return
-            
+
         self.current_recording = self._get_output_filename()
         os.makedirs(config.output.audio_directory, exist_ok=True)
-        
+
         try:
             self.recorder.start()
             self.is_recording = True
@@ -56,26 +57,29 @@ class RecordingManager:
             self.is_paused = False
             log.success(f"Recording saved to: {self.current_recording}")
             
+
             # Transcribe the recording
             log.transcribing("Starting transcription...")
             try:
                 log.info(f"Using Whisper model: {config.transcription.whisper.model}")
                 result = self.transcriber.transcribe(self.current_recording, full_analysis=True)
-                
+
                 if not result:
                     log.error("Transcription returned no results")
                     return
                     
                 log.success("Transcription complete! Displaying results:")
                 
+
                 # Display results
                 from .transcribe import display_rich_output
+
                 display_rich_output(
-                    result['text'],
-                    result['summary'],
-                    result['sentiment'],
-                    result['intent'],
-                    result['topics']
+                    result["text"],
+                    result["summary"],
+                    result["sentiment"],
+                    result["intent"],
+                    result["topics"],
                 )
                 
                 # Return the path for potential further processing
@@ -98,3 +102,4 @@ class RecordingManager:
         self.is_paused = not self.is_paused
         self.recorder.is_paused = self.is_paused
         log.show_recording_status(True, self.is_paused) 
+

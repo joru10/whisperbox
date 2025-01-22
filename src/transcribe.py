@@ -29,9 +29,10 @@ ASCII_ART = """
 Hacker Transcriber
 """
 
+
 def check_ffmpeg():
     try:
-        subprocess.run(['ffmpeg', '-version'], capture_output=True, check=True)
+        subprocess.run(["ffmpeg", "-version"], capture_output=True, check=True)
         return True
     except (subprocess.CalledProcessError, FileNotFoundError):
         log.error("Error: FFmpeg is not installed.")
@@ -39,11 +40,12 @@ def check_ffmpeg():
         log.info("  brew install ffmpeg")
         return False
 
+
 def install_whisper_model(model_name, whisperfile_path):
     full_model_name = f"whisper-{model_name}.llamafile"
     url = f"{WHISPER_BASE_URL}{full_model_name}"
     output_path = os.path.join(whisperfile_path, full_model_name)
-    
+
     # Create the directory if it doesn't exist
     os.makedirs(whisperfile_path, exist_ok=True)
     
@@ -58,6 +60,7 @@ def install_whisper_model(model_name, whisperfile_path):
             percent = min((downloaded / total_size) * 100, 100)
             progress.update(f"[bold green]Downloading... {percent:.1f}%")
     
+
     try:
         urlretrieve(url, output_path, show_progress)
         progress.stop()
@@ -67,6 +70,7 @@ def install_whisper_model(model_name, whisperfile_path):
         progress.stop()
         log.error(f"Error downloading model: {str(e)}")
         raise
+
 
 def get_whisper_model_path(model_name, whisperfile_path, verbose):
     full_model_name = f"whisper-{model_name}.llamafile"
@@ -79,19 +83,24 @@ def get_whisper_model_path(model_name, whisperfile_path, verbose):
     if not os.path.exists(model_path):
         log.warning(f"Whisper model {full_model_name} not found.")
         log.warning(f"Would you like to download it from {WHISPER_BASE_URL}?")
+
         if input("Download model? (y/n): ").lower() == "y":
             install_whisper_model(model_name, whisperfile_path)
         else:
-            raise FileNotFoundError(f"Whisper model {full_model_name} not found and download was declined.")
+            raise FileNotFoundError(
+                f"Whisper model {full_model_name} not found and download was declined."
+            )
     else:
         log.success(f"Found Whisper model at: {model_path}")
         
+
     # Check if the file is executable
     if not os.access(model_path, os.X_OK):
         log.warning("Making model file executable...")
         os.chmod(model_path, 0o755)
-            
+
     return model_path
+
 
 def transcribe_audio(model_name, whisperfile_path, audio_file, verbose):
     try:
@@ -107,12 +116,13 @@ def transcribe_audio(model_name, whisperfile_path, audio_file, verbose):
             raise FileNotFoundError(f"Audio file not found: {audio_file}")
             
         log.info("Running transcription command...")
+
         process = subprocess.Popen(
-            command, 
-            shell=True, 
-            stdout=subprocess.PIPE, 
-            stderr=subprocess.PIPE, 
-            text=True
+            command,
+            shell=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
         )
 
         stdout, stderr = process.communicate()
@@ -120,6 +130,7 @@ def transcribe_audio(model_name, whisperfile_path, audio_file, verbose):
         if process.returncode != 0:
             log.error(f"Command failed with return code {process.returncode}")
             log.error(f"Error output: {stderr}")
+
             raise Exception(f"Transcription failed: {stderr}")
 
         if not stdout.strip():
@@ -136,12 +147,15 @@ def transcribe_audio(model_name, whisperfile_path, audio_file, verbose):
         log.error(f"Error in transcribe_audio: {str(e)}")
         import traceback
         log.error(f"{traceback.format_exc()}")
+
         raise
+
 
 def summarize(text):
     ai_service = AIService()
     prompt = config.ai.prompts.summary.format(text=text)
     return ai_service.query(prompt)
+
 
 def analyze_sentiment(text):
     ai_service = AIService()
@@ -149,15 +163,18 @@ def analyze_sentiment(text):
     sentiment = ai_service.query(prompt).strip().lower()
     return sentiment if sentiment in ["positive", "neutral", "negative"] else "neutral"
 
+
 def detect_intent(text):
     ai_service = AIService()
     prompt = config.ai.prompts.intent.format(text=text)
     return ai_service.query(prompt)
 
+
 def detect_topics(text):
     ai_service = AIService()
     prompt = config.ai.prompts.topics.format(text=text)
     return ai_service.query(prompt)
+
 
 def export_to_markdown(text, filename):
     """Export transcription text to a markdown file in the transcriptions directory.
@@ -176,12 +193,12 @@ def export_to_markdown(text, filename):
 
     log.success(f"Transcription saved to {file_path}")
 
+
 def get_sentiment_color(sentiment):
-    return {
-        "positive": "green3",
-        "neutral": "gold1",
-        "negative": "red1"
-    }.get(sentiment, "white")
+    return {"positive": "green3", "neutral": "gold1", "negative": "red1"}.get(
+        sentiment, "white"
+    )
+
 
 def display_rich_output(transcript, summary, sentiment, intent, topics):
     # Print the ASCII art directly without a border
@@ -240,9 +257,12 @@ def display_rich_output(transcript, summary, sentiment, intent, topics):
     for panel in panels:
         console.print(panel)
 
+
 class Shallowgram:
     def __init__(self, whisperfile_path=None, vault_path=None):
-        self.whisperfile_path = whisperfile_path or os.path.expanduser("~/.whisperfiles")
+        self.whisperfile_path = whisperfile_path or os.path.expanduser(
+            "~/.whisperfiles"
+        )
         self.vault_path = vault_path or os.path.expanduser("~/Documents/ObsidianVault")
         self.ai_service = AIService()
 
@@ -263,6 +283,7 @@ class Shallowgram:
             log.info("Running Whisper transcription...")
             transcript = transcribe_audio(model, self.whisperfile_path, audio_file, True)  # Set verbose=True
             
+
             if not transcript:
                 log.error("Whisper returned empty transcript")
                 return None
