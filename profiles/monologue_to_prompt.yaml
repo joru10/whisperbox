@@ -1,0 +1,9 @@
+name: monologue_to_prompt
+prompt: >
+  Take the following monologue transcript and convert it into a highly effective prompt for a large language model.
+  The prompt should be concise, clear, and actionable.
+  It should have a section for key goal, and a section for context.
+  It should be no more than 100 words.
+
+actions:
+  - script: copy_to_clipboard

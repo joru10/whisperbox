@@ -26,7 +26,7 @@ DEFAULT_CONFIG = {
     "audio": {
         "format": "wav",
         "channels": 2,
-        "sample_rate": 44100,
+        "sample_rate": 48000,
         "chunk_size": 1024,
         "capture_system_audio": True,
         "devices": {"microphone": None},  # Will be set during device selection
