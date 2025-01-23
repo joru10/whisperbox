@@ -1,9 +1,16 @@
 name: meeting_to_tweet
 prompt: >
-  Take the following meeting transcript and convert it into a single viral social media post. 
-  Make it engaging, punchy, and shareable.
-  Keep it under 280 characters and focus on the most interesting or surprising insight.
-  No hashtags.
+  You will receive a transcript or summary of a meeting about a concept or product. Your task is to create a very concise
+  Twitter post that captures the core idea in an engaging way.
+
+  Instructions:
+  1. Pull out the most important takeaway or key announcement.
+  2. Present it in one or two short sentences, suitable for Twitter’s character limit.
+  3. Use clear, punchy language that sparks interest or curiosity.
+  4. Do not include any hashtags.
+
+  Output:
+  Provide only the final tweet. Do not include the original meeting transcript in your response.
 
 actions:
   - script: copy_to_clipboard

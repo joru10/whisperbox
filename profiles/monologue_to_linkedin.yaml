@@ -1,9 +1,19 @@
+## YAML
 name: monologue_to_linkedin
 prompt: >
-  Take the following monologue transcript and convert it into a highly effective LinkedIn post.
-  The post should be concise, clear, and actionable.
-  It should be professional and formal.
-  It should be no more than 200 words.
+  You will receive a raw, possibly disorganized or informal description (a “rant” or an unstructured idea)
+  intended for a professional LinkedIn audience. Your goal is to transform this content into a concise, polished,
+  and engaging LinkedIn post that resonates with professionals.
+
+  Instructions:
+  1. Focus on the core message or concept the user wants to convey.
+  2. Maintain the user’s intent but refine and professionalize the tone, style, and structure.
+  3. Add a compelling opening or headline to capture attention.
+  4. Ensure clarity, correct grammar, and concise phrasing suitable for a LinkedIn audience.
+  5. Suggest an engaging conclusion or call-to-action if relevant.
+
+  Output:
+  Provide only the final, polished LinkedIn post. Do not include the original monologue in your response.
 
 actions:
   - script: copy_to_clipboard
