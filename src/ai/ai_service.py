@@ -5,7 +5,8 @@ import ollama
 from openai import OpenAI
 from pydantic import BaseModel
 import json
-from .config import config
+from ..core.config import config
+import os
 
 T = TypeVar('T', bound=BaseModel)
 
@@ -18,17 +19,63 @@ class AIService:
     }
 
     def __init__(self, service_type: Optional[str] = None, model: Optional[str] = None):
+        """Initialize the AI service.
+        
+        Args:
+            service_type: The type of AI service to use (groq, anthropic, openai, ollama)
+            model: The specific model to use. If not provided, uses the default model for the service.
+        """
         self.service_type = service_type.lower() if service_type else "ollama"
         self.model = model if model else self.DEFAULT_MODELS[self.service_type]
-
+        
         if self.service_type == "groq":
-            self.client = Groq(api_key=config.get_api_key("groq"))
+            self.client = Groq(api_key=self._get_api_key("groq"))
         elif self.service_type == "anthropic":
-            self.client = Anthropic(api_key=config.get_api_key("anthropic"))
+            self.client = Anthropic(api_key=self._get_api_key("anthropic"))
         elif self.service_type == "openai":
-            self.client = OpenAI(api_key=config.get_api_key("openai"))
+            self.client = OpenAI(api_key=self._get_api_key("openai"))
         elif self.service_type == "ollama":
             self.client = ollama
+        else:
+            raise ValueError(
+                f"Invalid AI provider: {service_type}. "
+                "Must be one of: ollama, groq, anthropic, openai"
+            )
+
+    def _get_api_key(self, provider: str) -> str:
+        """Get API key from config or environment variables.
+        
+        Args:
+            provider: The AI provider name (groq, anthropic, openai)
+            
+        Returns:
+            str: The API key if found
+            
+        Raises:
+            ValueError: If no API key is found
+        """
+        # Try config first
+        config_key = config.get_api_key(provider)
+        if config_key:
+            return config_key
+        
+        # Try environment variables
+        env_var_map = {
+            "groq": "GROQ_API_KEY",
+            "anthropic": "ANTHROPIC_API_KEY",
+            "openai": "OPENAI_API_KEY"
+        }
+        
+        env_var = env_var_map.get(provider)
+        if env_var:
+            env_key = os.getenv(env_var)
+            if env_key:
+                return env_key
+            
+        raise ValueError(
+            f"No API key found for {provider}. Please set it in the config file "
+            f"or set the {env_var} environment variable."
+        )
 
     def query(self, prompt: str, system_prompt: Optional[str] = None, max_tokens: int = 1024) -> str:
         """Query AI with optional system prompt"""

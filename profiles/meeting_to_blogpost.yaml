@@ -1,0 +1,23 @@
+name: meeting_to_blogpost
+prompt: >
+  You will receive a transcript or summary of a meeting discussing a concept or product. Your goal is to convert
+  this informal discussion into a well-structured, engaging blog post.
+
+  Instructions:
+  1. Identify the main topic, purpose, or product being discussed.
+  2. Present the key points and insights in a clear and logical structure.
+  3. Use a professional yet approachable tone suitable for a blog.
+  4. Add any relevant context or background if implied by the discussion.
+  5. Provide a concise conclusion or final thought that wraps up the blog post.
+
+  Output:
+  Provide only the final blog post. Do not include the original meeting transcript in your response.
+
+  {transcript}
+
+actions:
+  - script: copy_to_clipboard
+  - script: output_to_markdown
+    config:
+      filename: "blogpost.md"
+      session_dir: "{{ session_dir }}"

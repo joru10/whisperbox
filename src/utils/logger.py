@@ -5,7 +5,7 @@ from datetime import datetime
 from typing import Optional
 import sys
 from rich.table import Table
-from .config import config, DEFAULT_CONFIG
+from ..core.config import config
 
 # Custom theme for consistent colors
 THEME = Theme({
@@ -18,6 +18,7 @@ THEME = Theme({
     'recording': 'bold red',
     'transcribing': 'bold yellow',
     'done': 'bold green',
+    'save': 'green',
     'header': 'bold magenta'  # Added header style
 })
 
@@ -49,6 +50,10 @@ class Logger:
         """Log a success message"""
         self.console.print(self._format_message(f"✅ {message}", "success"))
         
+    def done(self, message: str):
+        """Log a done message"""
+        self.console.print(self._format_message(f"🎉 {message}", "done"))
+        
     def debug(self, message: str):
         """Log a debug message (only in debug mode)"""
         if self.debug_mode:
@@ -61,6 +66,10 @@ class Logger:
     def transcribing(self, message: str):
         """Log a transcription-related message"""
         self.console.print(self._format_message(f"📝 {message}", "transcribing"))
+        
+    def save(self, message: str):
+        """Log a transcription-related message"""
+        self.console.print(self._format_message(f"💾 {message}", "save"))
         
     def status(self, message: str):
         """Update the current status"""
@@ -99,7 +108,7 @@ class Logger:
     def show_recording_status(self, is_recording: bool, is_paused: bool):
         """Show the current recording status."""
         if is_recording:
-            status = "⏸️  Paused" if is_paused else "⏺️  Recording..."
+            status = "⏸️  Paused" if is_paused else "🔴  Recording..."
             style = "warning" if is_paused else "recording"
         else:
             status = "⏹️  Ready"

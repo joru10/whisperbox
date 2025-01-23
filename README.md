@@ -1,4 +1,4 @@
-# Hacker Transcriber
+# WhisperBox
 
 A powerful command-line tool for transcribing and analyzing audio recordings with AI assistance. Record meetings, lectures, or any audio directly from your terminal and get instant transcriptions with summaries, sentiment analysis, and topic detection.
 
@@ -31,8 +31,8 @@ A powerful command-line tool for transcribing and analyzing audio recordings wit
 1. Clone the repository:
 
 ```bash
-git clone https://github.com/yourusername/hacker-transcriber.git
-cd hacker-transcriber
+git clone https://github.com/tooluseai/whisperbox.git
+cd whisperbox
 ```
 
 2. Install dependencies using Poetry:
@@ -51,7 +51,13 @@ brew install ffmpeg
 sudo apt-get install ffmpeg
 ```
 
-4. Configure your API keys:
+4. Install BlackHole (MacOS only)
+
+```bash
+brew install blackhole-2ch
+```
+
+5. Configure your API keys:
    - Copy `config.yaml` to create your local configuration
    - Add your API keys for the services you plan to use:
      - OpenAI
@@ -64,12 +70,29 @@ sudo apt-get install ffmpeg
 
 ## Usage
 
+### Setup
+
+The first time you run the app, you will go through the setup wizard.
+
+```bash
+poetry run wb
+```
+
+Then select the Whisper model you want to use. The smaller models are faster and quicker to download but the larger models are more accurate.
+Download times will vary depending on your internet speed.
+
+Then select the AI provider you want to use. Ollama runs locally and does not require an API key.
+
+Then select the model you want to use.
+
+Then you will have the option to view the config file location so you can customize additional settings. This directory also contains the whisper models you downloaded, the meeting, and the monologues.
+
 ### Basic Transcription
 
 1. Start recording:
 
 ```bash
-poetry run transcribe
+poetry run wb
 ```
 
 2. Press Enter to stop recording when finished.
@@ -116,7 +139,7 @@ See the example `config.yaml` for all available options.
 ## Project Structure
 
 ```
-hacker-transcriber/
+whisperbox/
 ├── pyproject.toml       # Poetry project configuration
 ├── config.yaml         # Application configuration
 ├── main.py            # Entry point
