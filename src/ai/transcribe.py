@@ -19,6 +19,8 @@ from urllib.request import urlretrieve
 from ..core.config import config
 from ..audio.audio import AudioRecorder, convert_to_wav
 from ..utils.logger import log
+from ..utils.utils import get_models_dir
+
 console = Console()
 
 OLLAMA_MODEL = config.ai.default_model
@@ -48,18 +50,17 @@ def install_whisper_model(model_name, whisperfile_path):
 
     # Create the directory if it doesn't exist
     os.makedirs(whisperfile_path, exist_ok=True)
-    
+
     log.info(f"Downloading {full_model_name}...")
     # Create a progress bar
     progress = console.status("[bold green]Downloading...", spinner="dots")
     progress.start()
-    
+
     def show_progress(block_num, block_size, total_size):
         if total_size > 0:
             downloaded = block_num * block_size
             percent = min((downloaded / total_size) * 100, 100)
             progress.update(f"[bold green]Downloading... {percent:.1f}%")
-    
 
     try:
         urlretrieve(url, output_path, show_progress)
@@ -77,9 +78,9 @@ def get_whisper_model_path(model_name, whisperfile_path, verbose):
     # Expand user path if necessary
     whisperfile_path = os.path.expanduser(whisperfile_path)
     model_path = os.path.join(whisperfile_path, full_model_name)
-    
+
     log.debug(f"Looking for Whisper model at: {model_path}")
-    
+
     if not os.path.exists(model_path):
         log.warning(f"Whisper model {full_model_name} not found.")
         log.warning(f"Would you like to download it from {WHISPER_BASE_URL}?")
@@ -92,7 +93,6 @@ def get_whisper_model_path(model_name, whisperfile_path, verbose):
             )
     else:
         log.debug(f"Found Whisper model at: {model_path}")
-        
 
     # Check if the file is executable
     if not os.access(model_path, os.X_OK):
@@ -114,7 +114,7 @@ def transcribe_audio(model_name, whisperfile_path, audio_file, verbose):
         # Check if file exists and is readable
         if not os.path.exists(audio_file):
             raise FileNotFoundError(f"Audio file not found: {audio_file}")
-            
+
         log.debug("Running transcription command...")
 
         process = subprocess.Popen(
@@ -145,6 +145,7 @@ def transcribe_audio(model_name, whisperfile_path, audio_file, verbose):
     except Exception as e:
         log.error(f"Error in transcribe_audio: {str(e)}")
         import traceback
+
         log.error(f"{traceback.format_exc()}")
 
         raise
@@ -199,9 +200,7 @@ def get_sentiment_color(sentiment):
 
 class Shallowgram:
     def __init__(self, whisperfile_path=None, vault_path=None):
-        self.whisperfile_path = whisperfile_path or os.path.expanduser(
-            "~/.whisperfiles"
-        )
+        self.whisperfile_path = whisperfile_path or get_models_dir()
         self.vault_path = vault_path or os.path.expanduser("~/Documents/ObsidianVault")
         self.ai_service = AIService()
 
@@ -220,13 +219,15 @@ class Shallowgram:
 
         try:
             log.info("Running Whisper transcription...")
-            transcript = transcribe_audio(model, self.whisperfile_path, audio_file, True)  # Set verbose=True
-            
+            transcript = transcribe_audio(
+                model, self.whisperfile_path, audio_file, True
+            )  # Set verbose=True
+
             if not transcript:
                 log.error("Whisper returned empty transcript")
                 return None
 
-            return {'text': transcript}
+            return {"text": transcript}
 
         except Exception as e:
             log.error(f"Error in transcription: {str(e)}")

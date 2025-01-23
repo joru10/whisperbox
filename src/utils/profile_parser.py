@@ -3,6 +3,7 @@
 import os
 import yaml
 from ..core.config import config
+from ..utils.utils import get_profiles_dir
 
 
 def load_profile_yaml(profile_name: str):
@@ -47,8 +48,7 @@ def load_profile_yaml(profile_name: str):
 
 def get_available_profiles():
     """Return a list of available profile names."""
-    profiles_dir = config.output.profiles_directory
-    print(f"Debug - profiles_dir: {profiles_dir}")
+    profiles_dir = get_profiles_dir()
     if not profiles_dir or not os.path.exists(profiles_dir):
         return []
 

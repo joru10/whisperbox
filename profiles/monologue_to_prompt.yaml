@@ -1,0 +1,18 @@
+## YAML
+name: monologue_to_prompt
+prompt: >
+  You will receive a long, possibly disorganized description (“monologue”) of what the user wants. Your goal is
+  to read this monologue thoroughly and then produce a single, clear, and optimized prompt that accomplishes
+  the user’s stated objective.
+
+  Instructions:
+  1. Focus on the user’s ultimate goal: extract critical details and requirements from the monologue.
+  2. Remove extraneous commentary or irrelevant tangents.
+  3. Organize the information into a structured and concise prompt that an LLM can easily follow.
+  4. If specific instructions, constraints, or desired formatting are implied by the user, incorporate them clearly.
+  5. Maintain clarity, brevity, and relevance.
+
+  Output:
+  Provide only the final, optimized prompt. Do not include the original monologue in your response.
+actions:
+  - script: copy_to_clipboard
