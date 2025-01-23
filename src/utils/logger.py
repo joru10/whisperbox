@@ -50,6 +50,10 @@ class Logger:
         """Log a success message"""
         self.console.print(self._format_message(f"✅ {message}", "success"))
         
+    def done(self, message: str):
+        """Log a done message"""
+        self.console.print(self._format_message(f"🎉 {message}", "done"))
+        
     def debug(self, message: str):
         """Log a debug message (only in debug mode)"""
         if self.debug_mode:

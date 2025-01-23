@@ -13,5 +13,6 @@ prompt: >
   Output:
   Provide only the feedback. Do not include the original content in your response.
 
+  {transcript}
 actions:
   - script: output_to_terminal

@@ -1,7 +1,7 @@
 from rich.console import Console
 from .ai_service import AIService
 from typing import Optional
-
+from ..utils.logger import log
 console = Console()
 
 
@@ -23,18 +23,30 @@ def process_transcript(
     try:
         with open(transcript_path, "r") as f:
             transcript_text = f.read()
+            
+        log.debug("=== Raw Transcript ===")
+        log.debug(transcript_text)
 
         # Remove the markdown header to get clean text
         clean_text = transcript_text.replace("# Meeting Transcription\n\n", "").strip()
+        
+        log.debug("=== Clean Text ===")
+        log.debug(clean_text)
 
         if not prompt:
             raise ValueError("No prompt provided for processing")
 
-        final_prompt = prompt.format(text=clean_text)
-
+        # Format the prompt template with the clean text
+        formatted_prompt = prompt.format(transcript=clean_text)
+        log.debug("=== Formatted Prompt ===")
+        log.debug(formatted_prompt)
+        
         # Process with AI service
         ai_service = AIService(service_type=ai_provider)
-        result = ai_service.query(final_prompt)
+        result = ai_service.query(formatted_prompt)
+        
+        log.debug("=== AI Result ===")
+        log.debug(result)
 
         return result
 

@@ -14,5 +14,7 @@ prompt: >
 
   Output:
   Provide only the final, optimized prompt. Do not include the original monologue in your response.
+
+  {transcript}
 actions:
   - script: copy_to_clipboard

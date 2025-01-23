@@ -12,6 +12,8 @@ prompt: >
   Provide only the final summary, covering the four sections above. Do not include the original meeting transcript
   in your response.
 
+  {transcript}
+
 actions:
   - script: send_post_request
     config:

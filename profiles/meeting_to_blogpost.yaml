@@ -13,6 +13,8 @@ prompt: >
   Output:
   Provide only the final blog post. Do not include the original meeting transcript in your response.
 
+  {transcript}
+
 actions:
   - script: copy_to_clipboard
   - script: output_to_markdown

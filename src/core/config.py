@@ -30,7 +30,16 @@ DEFAULT_CONFIG = {
         "sample_rate": 48000,
         "chunk_size": 1024,
         "capture_system_audio": True,
-        "devices": {"microphone": None},  # Will be set during device selection
+        "devices": {
+            "microphone": {
+                "name": None,
+                "index": None,
+                "channels": None,
+                "sample_rate": None,
+                "input_latency": None,
+                "is_default": None
+            }
+        }
     },
     "output": {
         "session_type": "meeting",  # or 'monologue'
@@ -70,44 +79,32 @@ class Config:
         os.makedirs(self.output.monologues_directory, exist_ok=True)
         os.makedirs(self.system.temp_directory, exist_ok=True)
 
-        # Load API keys from environment variables if available
-        self._load_api_keys_from_env()
-
     def save(self) -> None:
         """Save current configuration to file."""
-        save_config(self._config)
-
-    def _load_api_keys_from_env(self) -> None:
-        """Load API keys from environment variables if they exist."""
-        env_mapping = {
-            "OPENAI_API_KEY": ("api", "openai", "api_key"),
-            "ANTHROPIC_API_KEY": ("api", "anthropic", "api_key"),
-            "GROQ_API_KEY": ("api", "groq", "api_key"),
-        }
-
-        for env_var, config_path in env_mapping.items():
-            if env_value := os.getenv(env_var):
-                # Create nested structure if it doesn't exist
-                current = self._config
-                for part in config_path[:-1]:
-                    if part not in current:
-                        current[part] = {}
-                    current = current[part]
-                current[config_path[-1]] = env_value
+        # Create a copy of config without sensitive data
+        safe_config = self._config.copy()
+        if "api" in safe_config:
+            del safe_config["api"]  # Never save API keys to file
+        save_config(safe_config)
 
     def get_api_key(self, service: str) -> Optional[str]:
-        """Get API key for the specified service.
+        """Get API key for the specified service from environment variables.
 
         Args:
             service (str): Service name (openai, anthropic, groq)
 
         Returns:
-            Optional[str]: API key if found, None otherwise
+            Optional[str]: API key if found in environment variables, None otherwise
         """
-        try:
-            return self.api.get(service, {}).get("api_key")
-        except AttributeError:
-            return None
+        env_var_map = {
+            "openai": "OPENAI_API_KEY",
+            "anthropic": "ANTHROPIC_API_KEY",
+            "groq": "GROQ_API_KEY",
+        }
+        
+        if env_var := env_var_map.get(service):
+            return os.getenv(env_var)
+        return None
 
     @property
     def api(self):

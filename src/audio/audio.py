@@ -279,28 +279,33 @@ def convert_to_wav(input_file, output_file):
 
 
 def get_input_devices():
-    """Get list of input devices only."""
+    """Get list of input devices with detailed information."""
     p = pyaudio.PyAudio()
     input_devices = []
+    default_input_index = p.get_default_input_device_info()['index']
 
     for i in range(p.get_device_count()):
-        device_info = p.get_device_info_by_index(i)
-        if int(device_info["maxInputChannels"]) > 0:  # Cast to int to fix type error
-            input_devices.append(
-                {
+        try:
+            device_info = p.get_device_info_by_index(i)
+            if int(device_info["maxInputChannels"]) > 0:  # Cast to int to fix type error
+                input_devices.append({
                     "index": i,
                     "name": device_info["name"],
-                    "channels": device_info["maxInputChannels"],
-                    "sample_rate": device_info["defaultSampleRate"],
-                }
-            )
+                    "channels": int(device_info["maxInputChannels"]),
+                    "sample_rate": int(device_info["defaultSampleRate"]),
+                    "input_latency": float(device_info["defaultLowInputLatency"]),
+                    "is_default": i == default_input_index
+                })
+        except Exception as e:
+            log.debug(f"Error getting info for device {i}: {e}")
+            continue
 
     p.terminate()
     return input_devices
 
 
 def select_audio_device():
-    """Interactive audio device selection."""
+    """Interactive audio device selection with enhanced configuration."""
     devices = get_input_devices()
 
     if not devices:
@@ -308,37 +313,60 @@ def select_audio_device():
         return
 
     # Create device choices with formatted strings
-    choices = [
-        f"{d['name']} (Channels: {d['channels']}, Sample Rate: {d['sample_rate']})"
-        for d in devices
-    ]
+    choices = []
+    for d in devices:
+        default_marker = " (Default)" if d['is_default'] else ""
+        choice_str = (
+            f"{d['name']}{default_marker}\n"
+            f"   Channels: {d['channels']}, Sample Rate: {int(d['sample_rate'])}Hz, "
+            f"Latency: {d['input_latency']:.3f}ms"
+        )
+        choices.append(choice_str)
 
     # Show device selection prompt
     selection = inquirer.select(
         message="Select input device:",
         choices=choices,
-        default=None,
+        default=next((i for i, d in enumerate(choices) if "(Default)" in d), 0),
     ).execute()
 
-    # Get the selected device (extract name before the parentheses)
-    selected_name = selection.split(" (")[0]
+    # Get the selected device (extract name before the newline)
+    selected_name = selection.split("\n")[0].replace(" (Default)", "")
     selected_device = next(d for d in devices if d["name"] == selected_name)
 
-    # Update config using proper config management
+    # Update config with detailed device information
     try:
         if "audio" not in config._config:
             config._config["audio"] = {}
         if "devices" not in config._config["audio"]:
             config._config["audio"]["devices"] = {}
 
-        config._config["audio"]["devices"]["microphone"] = selected_device["name"]
+        # Update the microphone configuration with all available details
+        config._config["audio"]["devices"]["microphone"] = {
+            "name": selected_device["name"],
+            "index": selected_device["index"],
+            "channels": selected_device["channels"],
+            "sample_rate": selected_device["sample_rate"],
+            "input_latency": selected_device["input_latency"],
+            "is_default": selected_device["is_default"]
+        }
+
+        # Update the main audio settings to match the device's native capabilities
+        config._config["audio"]["channels"] = selected_device["channels"]
+        config._config["audio"]["sample_rate"] = selected_device["sample_rate"]
+
         config.save()
 
-        log.success(f"Updated config: Using {selected_device['name']} as input device")
+        log.success(
+            f"Updated config: Using {selected_device['name']}\n"
+            f"Native settings - Channels: {selected_device['channels']}, "
+            f"Sample Rate: {selected_device['sample_rate']}Hz"
+        )
         print("")
 
     except Exception as e:
         log.error(f"Error updating config: {e}")
+        log.debug(traceback.format_exc())
 
 
 def list_audio_devices():

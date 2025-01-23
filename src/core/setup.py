@@ -18,6 +18,7 @@ from InquirerPy import inquirer
 from ..utils.logger import log
 import time
 import shutil
+from ..audio.audio import select_audio_device
 
 WHISPER_MODELS = {
     "tiny.en": {"description": "Fastest, least accurate, ~1GB RAM"},
@@ -86,6 +87,12 @@ def setup_config() -> Dict[str, Any]:
 
     # Start with default config
     config = DEFAULT_CONFIG.copy()
+
+    # Audio Device Selection
+    log.header("Audio Device Setup")
+    time.sleep(0.5)
+    select_audio_device()  # This will update the config directly
+    log.info("You can change your audio device later using the 'devices' command.")
 
     # Check FFmpeg
     log.info("Checking FFmpeg installation...")

@@ -15,5 +15,7 @@ prompt: >
   Output:
   Provide only the final, polished LinkedIn post. Do not include the original monologue in your response.
 
+  {transcript}
+
 actions:
   - script: copy_to_clipboard

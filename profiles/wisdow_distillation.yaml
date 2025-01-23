@@ -13,5 +13,6 @@ prompt: >
   Output:
   Provide only the distilled highlights. Do not include the original text in your response.
 
+  {transcript}
 actions:
   - script: output_to_terminal

@@ -14,5 +14,6 @@ prompt: >
   Output:
   Provide only the final, structured keynote. Do not include the original monologue in your response.
 
+  {transcript}
 actions:
   - script: output_to_markdown

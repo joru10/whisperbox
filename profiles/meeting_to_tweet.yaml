@@ -12,6 +12,8 @@ prompt: >
   Output:
   Provide only the final tweet. Do not include the original meeting transcript in your response.
 
+  {transcript}
+
 actions:
   - script: copy_to_clipboard
   - script: output_to_terminal
