@@ -1,0 +1,17 @@
+## YAML
+name: storyteller
+prompt: >
+  You will receive an unstructured monologue or set of ideas. Your goal is to craft a cohesive story with a clear
+  narrative arc.
+
+  Instructions:
+  1. Identify the main characters (if any) or central theme.
+  2. Develop a beginning, middle, and end, ensuring a logical flow.
+  3. Incorporate tension, conflict, or intrigue to make the story compelling.
+  4. Conclude with a satisfying resolution or a thought-provoking ending.
+
+  Output:
+  Provide only the final story. Do not include the original monologue in your response.
+
+actions:
+  - script: output_to_markdown

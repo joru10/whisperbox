@@ -1,0 +1,17 @@
+## YAML
+name: personal_readme
+prompt: >
+  You will receive a monologue or description of a person: their background, values, work style, and personal quirks.
+  Your goal is to create a “Personal README” that someone can share to help others understand them better.
+
+  Instructions:
+  1. Summarize the person’s professional background and personal interests.
+  2. Highlight communication style, preferences, or any quirks they mention.
+  3. Maintain a friendly, authentic tone that reflects the individual’s personality.
+  4. Organize the information into sections for clarity (e.g., “Who I Am,” “How I Work,” “What I Value,” etc.).
+
+  Output:
+  Provide only the Personal README. Do not include the original text in your response.
+
+actions:
+  - script: output_to_markdown

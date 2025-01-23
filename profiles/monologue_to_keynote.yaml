@@ -1,0 +1,18 @@
+## YAML
+name: monologue_to_keynote
+prompt: >
+  You will receive an unstructured or casual monologue that outlines ideas or concepts. Your goal is to transform
+  these ideas into a compelling, TED Talk-style keynote presentation.
+
+  Instructions:
+  1. Identify the central theme and key supporting points.
+  2. Organize the content into a clear structure with an introduction, main sections, and a conclusion.
+  3. Use an engaging, inspirational tone that captivates an audience.
+  4. Include rhetorical devices, stories, or examples to illustrate key points.
+  5. Close with a memorable, call-to-action message or final takeaway.
+
+  Output:
+  Provide only the final, structured keynote. Do not include the original monologue in your response.
+
+actions:
+  - script: output_to_markdown
