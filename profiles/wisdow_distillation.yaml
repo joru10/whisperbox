@@ -1,0 +1,17 @@
+## YAML
+name: wisdow_distillation
+prompt: >
+  You will receive a long, possibly meandering stream of consciousness. Your task is to extract the most profound,
+  thought-provoking, or impactful statements from it.
+
+  Instructions:
+  1. Scan through the content to identify key insights, quotes, or ideas.
+  2. Select only the lines or passages that carry significant wisdom or perspective.
+  3. Present them concisely in a bullet list, with each item standing on its own.
+  4. Do not add editorial commentary—only the distilled statements.
+
+  Output:
+  Provide only the distilled highlights. Do not include the original text in your response.
+
+actions:
+  - script: output_to_terminal
