@@ -9,6 +9,7 @@ from ..utils.utils import (
     save_config,
     load_config,
     get_app_dir,
+    get_profiles_dir,
 )
 
 DEFAULT_CONFIG = {
@@ -35,9 +36,7 @@ DEFAULT_CONFIG = {
         "session_type": "meeting",  # or 'monologue'
         "meetings_directory": str(get_meetings_dir()),
         "monologues_directory": str(get_monologues_dir()),
-        "profiles_directory": str(
-            os.path.join(os.path.dirname(__file__), "..", "..", "profiles")
-        ),
+        "profiles_directory": str(get_profiles_dir()),
         "timestamp_format": "%Y-%m-%d_%H-%M-%S",
         "save_audio": True,
         "file_format": "md",
