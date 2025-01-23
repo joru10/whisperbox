@@ -56,10 +56,10 @@ class AudioRecorder:
                 default_input = self.p.get_default_input_device_info()
                 log.debug(f"Default input device: {default_input['name']}")
                 log.debug(f"Max input channels: {default_input['maxInputChannels']}")
-                mic_channels = min(
+                self.mic_channels = min(
                     int(default_input["maxInputChannels"]), config.audio.channels
                 )
-                log.debug(f"Using {mic_channels} channels for microphone")
+                log.debug(f"Using {self.mic_channels} channels for microphone")
             except Exception as e:
                 log.error(f"Error getting default input device info: {e}")
                 raise
@@ -67,7 +67,7 @@ class AudioRecorder:
             # Create microphone stream with non-blocking
             self.mic_stream = self.p.open(
                 format=pyaudio.paInt16,
-                channels=mic_channels,
+                channels=self.mic_channels,
                 rate=config.audio.sample_rate,
                 input=True,
                 frames_per_buffer=config.audio.chunk_size,
@@ -260,7 +260,7 @@ class AudioRecorder:
         """Save recorded audio to file."""
         log.debug(f"Saving {len(self.frames)} frames to {output_file}")
         wf = wave.open(output_file, "wb")
-        wf.setnchannels(config.audio.channels)
+        wf.setnchannels(self.mic_channels)
         wf.setsampwidth(self.p.get_sample_size(pyaudio.paInt16))
         wf.setframerate(config.audio.sample_rate)
         wf.writeframes(b"".join(self.frames))
