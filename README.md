@@ -16,7 +16,7 @@ A powerful command-line tool for transcribing and analyzing audio recordings wit
   - OpenAI GPT-4
   - Groq
   - Ollama (local models)
-- Export to Markdown (with optional Obsidian vault integration)
+- Export to Markdown
 - Rich terminal UI with color-coded output
 - Configurable audio settings and output formats
 
@@ -99,28 +99,28 @@ poetry run wb
 
 ### Advanced Options
 
+- Specify a profile:
+
+```bash
+poetry run wb --profile monologue_to_keynote
+```
+
 - Specify a Whisper model:
 
 ```bash
-poetry run transcribe --model large
+poetry run wb --model large
 ```
 
 - Enable full analysis (summary, sentiment, intent, topics):
 
 ```bash
-poetry run transcribe --analyze
-```
-
-- Export to Obsidian vault:
-
-```bash
-poetry run transcribe --vault ~/Documents/ObsidianVault
+poetry run wb --analyze
 ```
 
 - Enable verbose output:
 
 ```bash
-poetry run transcribe --verbose
+poetry run wb --verbose
 ```
 
 ## Configuration
