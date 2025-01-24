@@ -11,11 +11,13 @@ from ..utils.utils import get_profiles_dir
 
 def load_profile_yaml(profile_name: str):
     """
-    Load the YAML profile from 'profiles/<profile_name>.yaml'.
+    Load the YAML profile from the app's profiles directory.
     Returns a dict with keys: name, prompt, actions, etc.
     Shows user-friendly error messages for YAML parsing issues.
     """
-    profile_path = os.path.join("profiles", f"{profile_name}.yaml")
+    profiles_dir = get_profiles_dir()
+    profile_path = os.path.join(profiles_dir, f"{profile_name}.yaml")
+    
     if not os.path.isfile(profile_path):
         raise FileNotFoundError(f"Profile file not found: {profile_path}")
 

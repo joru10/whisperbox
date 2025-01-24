@@ -126,8 +126,6 @@ def get_transcript_path(audio_file_path: str | None) -> str | None:
     Returns:
         str | None: Path to the transcript.md file as string, or None if audio_file_path is None
     """
-    from ..utils.logger import log
-
     if not audio_file_path:
         return None
 
@@ -135,6 +133,8 @@ def get_transcript_path(audio_file_path: str | None) -> str | None:
     transcript_path = audio_path.parent / "transcript.md"
 
     if not transcript_path.exists():
+        # Import log here to avoid circular import
+        from ..utils.logger import log
         log.warning(f"Transcript file not found at: {transcript_path}")
 
     return str(transcript_path)

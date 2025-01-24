@@ -9,12 +9,20 @@ from src.audio.recording_manager import RecordingManager
 from src.utils.logger import log
 from src.core.setup import setup
 from src.audio.audio import list_audio_devices
-from src.utils.utils import is_first_run, create_app_directory_structure, get_transcript_path, get_app_dir, reveal_in_file_manager
+from src.utils.utils import (
+    is_first_run,
+    create_app_directory_structure,
+    get_transcript_path,
+    get_app_dir,
+    reveal_in_file_manager,
+)
+from src.utils.model_utils import check_whisper_model
 from src.ai.process_transcript import process_transcript
 from src.ai.ai_service import AIService
 from src.utils.profile_parser import load_profile_yaml, get_available_profiles
 from src.utils.profile_executor import run_profile_actions
 import traceback
+from pathlib import Path
 
 
 def cli_mode(ai_provider=None, debug=False, profile=None):
@@ -27,6 +35,9 @@ def cli_mode(ai_provider=None, debug=False, profile=None):
             level=logging.INFO if not config.system.debug_mode else logging.DEBUG
         )
         logger = logging.getLogger(__name__)
+
+        # Check for required Whisper model
+        check_whisper_model()
 
         # Print header and instructions
         log.print_header()
@@ -134,6 +145,9 @@ def cli_mode(ai_provider=None, debug=False, profile=None):
 def app_mode():
     """Run the application in GUI mode."""
     try:
+        # Check for required Whisper model
+        check_whisper_model()
+
         from src.ui.app import TranscriberApp
 
         app = TranscriberApp()
@@ -155,6 +169,9 @@ def main():
 Examples:
   # Run initial setup
   wb --setup
+
+  # Launch the GUI app
+  wb --app
 
   # Record and transcribe a meeting with Ollama
   wb --ai-provider ollama --profile meeting_summary
@@ -191,6 +208,11 @@ For more information, visit: https://github.com/ToolUse/whisperbox
             "--open",
             action="store_true",
             help="Open the WhisperBox data folder in Documents",
+        )
+        setup_group.add_argument(
+            "--app",
+            action="store_true",
+            help="Launch WhisperBox in GUI mode",
         )
 
         # Recording and Processing group
@@ -240,7 +262,18 @@ For more information, visit: https://github.com/ToolUse/whisperbox
             reveal_in_file_manager(get_app_dir())
             return
 
-        # Run in CLI mode if no special commands
+        # Launch GUI mode if --app flag is present
+        if args.app:
+            try:
+                from src.ui.app import TranscriberApp
+                app = TranscriberApp()
+                return app.main_loop()
+            except ImportError as e:
+                log.error("Could not load GUI mode. Make sure toga is installed.")
+                log.error(f"Error details: {e}")
+                return 1
+
+        # Run in CLI mode if no special commands and no --app flag
         cli_mode(
             ai_provider=args.ai_provider,
             debug=args.debug,
