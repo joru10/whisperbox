@@ -488,7 +488,7 @@ class SettingsScreen(toga.Box):
 
 class TranscriberApp(toga.App):
     def __init__(self):
-        super().__init__('Hacker Transcriber', 'com.hackertranscriber')
+        super().__init__('WhisperBox', 'com.whisperbox')
         self.recording_manager = RecordingManager()
         self.hotkey_manager = HotkeyManager(config)
         self.is_recording = False
