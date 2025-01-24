@@ -13,6 +13,7 @@ from rich.console import Console
 import yaml
 from InquirerPy import inquirer
 import traceback
+import sounddevice as sd
 
 
 class AudioRecorder:
@@ -296,33 +297,26 @@ def convert_to_wav(input_file, output_file):
 
 
 def get_input_devices():
-    """Get list of input devices with detailed information."""
-    p = pyaudio.PyAudio()
-    input_devices = []
-    default_input_index = p.get_default_input_device_info()["index"]
-
-    for i in range(p.get_device_count()):
-        try:
-            device_info = p.get_device_info_by_index(i)
-            if (
-                int(device_info["maxInputChannels"]) > 0
-            ):  # Cast to int to fix type error
-                input_devices.append(
-                    {
-                        "index": i,
-                        "name": device_info["name"],
-                        "channels": int(device_info["maxInputChannels"]),
-                        "sample_rate": int(device_info["defaultSampleRate"]),
-                        "input_latency": float(device_info["defaultLowInputLatency"]),
-                        "is_default": i == default_input_index,
-                    }
-                )
-        except Exception as e:
-            log.debug(f"Error getting info for device {i}: {e}")
-            continue
-
-    p.terminate()
-    return input_devices
+    """Get list of available input devices."""
+    try:
+        devices = sd.query_devices()
+        input_devices = []
+        
+        for i, device in enumerate(devices):
+            if device['max_input_channels'] > 0:  # Only input devices
+                input_devices.append({
+                    'name': device['name'],
+                    'index': i,
+                    'channels': device['max_input_channels'],
+                    'sample_rate': device['default_samplerate'],
+                    'input_latency': device['default_low_input_latency'] * 1000,  # Convert to ms
+                    'is_default': i == sd.default.device[0]
+                })
+        
+        return input_devices
+    except Exception as e:
+        log.error(f"Error getting input devices: {e}")
+        return []
 
 
 def select_audio_device():

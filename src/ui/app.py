@@ -1,6 +1,6 @@
 import toga
 from toga.style import Pack
-from toga.style.pack import COLUMN, ROW
+from toga.constants import COLUMN, ROW
 from threading import Thread
 from ..audio.recording_manager import RecordingManager
 from ..utils.hotkeys import HotkeyManager
@@ -9,82 +9,158 @@ from ..utils.utils import get_app_dir, get_profiles_dir
 from ..utils.profile_parser import get_available_profiles, load_profile_yaml
 import time
 import os
+from ..utils.logger import log
 
 class HomeScreen(toga.Box):
     def __init__(self, app):
-        super().__init__(style=Pack(direction=COLUMN, padding=10))
+        super().__init__(style=Pack(direction=COLUMN, padding=20))
         self.app = app
         
-        # Status label with emoji
-        self.status_label = toga.Label(
-            '⏹️ Ready to Record',
-            style=Pack(padding=(0, 5))
-        )
-
-        # Timer label
-        self.timer_label = toga.Label(
-            '00:00',
-            style=Pack(padding=(0, 5))
-        )
-
-        # Profile selector
-        profiles_box = toga.Box(style=Pack(direction=ROW, padding=5))
-        profiles_box.add(toga.Label('Profile:', style=Pack(padding=(0, 5))))
+        # Create main content box with white background and rounded corners
+        main_content = toga.Box(style=Pack(
+            direction=COLUMN,
+            padding=20,
+            flex=1
+        ))
         
-        # Get available profiles
+        # Header section with app title and description
+        header_box = toga.Box(style=Pack(direction=COLUMN, padding=(0, 0, 20, 0)))
+        title = toga.Label(
+            'WhisperBox',
+            style=Pack(font_size=24, font_weight='bold', padding=(0, 0, 5, 0))
+        )
+        description = toga.Label(
+            'Record and transcribe your audio with ease',
+            style=Pack(font_size=14, color='#666666')
+        )
+        header_box.add(title)
+        header_box.add(description)
+        main_content.add(header_box)
+
+        # Profile selector section
+        profiles_box = toga.Box(style=Pack(
+            direction=COLUMN,
+            padding=(0, 0, 20, 0)
+        ))
+        profiles_label = toga.Label(
+            'Recording Profile',
+            style=Pack(font_size=16, font_weight='bold', padding=(0, 0, 5, 0))
+        )
+        profiles_box.add(profiles_label)
+        
+        # Profile selector row
+        profile_row = toga.Box(style=Pack(direction=ROW))
         self.profiles = get_available_profiles()
         self.profile_selection = toga.Selection(
             items=self.profiles,
             on_select=self.on_profile_selected,
-            style=Pack(flex=1)
+            style=Pack(flex=1, padding=(0, 5, 0, 0))
         )
-        profiles_box.add(self.profile_selection)
-        
-        # Refresh profiles button
         self.refresh_profiles_button = toga.Button(
             '🔄',
             on_press=self.refresh_profiles,
-            style=Pack(padding=(0, 5))
+            style=Pack(width=30)
         )
-        profiles_box.add(self.refresh_profiles_button)
-        
-        # Add profiles box
-        self.add(profiles_box)
+        profile_row.add(self.profile_selection)
+        profile_row.add(self.refresh_profiles_button)
+        profiles_box.add(profile_row)
+        main_content.add(profiles_box)
 
-        # Recording button
+        # Status and timer section
+        status_box = toga.Box(style=Pack(
+            direction=COLUMN,
+            padding=(0, 0, 20, 0),
+            alignment='center'
+        ))
+        
+        # Status indicator (emoji + text)
+        self.status_label = toga.Label(
+            '⏹️ Ready to Record',
+            style=Pack(
+                font_size=18,
+                padding=(0, 0, 10, 0),
+                text_align='center'
+            )
+        )
+        status_box.add(self.status_label)
+        
+        # Timer with large font
+        self.timer_label = toga.Label(
+            '00:00',
+            style=Pack(
+                font_size=32,
+                font_family='monospace',
+                font_weight='bold',
+                padding=(0, 0, 20, 0),
+                text_align='center'
+            )
+        )
+        status_box.add(self.timer_label)
+        main_content.add(status_box)
+
+        # Control buttons
+        buttons_box = toga.Box(style=Pack(
+            direction=ROW,
+            padding=(0, 0, 10, 0),
+            alignment='center'
+        ))
+        
+        # Record button
         self.record_button = toga.Button(
             '🎙️ Start Recording',
             on_press=lambda widget: self.app.record_command.action(widget),
-            style=Pack(padding=5)
+            style=Pack(
+                padding=10,
+                font_size=16,
+                width=200
+            )
         )
-
+        
         # Pause button
         self.pause_button = toga.Button(
             '⏸️ Pause',
             on_press=lambda widget: self.app.pause_command.action(widget),
             enabled=False,
-            style=Pack(padding=5)
+            style=Pack(
+                padding=10,
+                font_size=16,
+                width=150
+            )
         )
-
-        # Audio source info
-        self.mic_label = toga.Label(
-            'Microphone: Default',
-            style=Pack(padding=(0, 5))
-        )
-        self.system_label = toga.Label(
-            'System Audio: BlackHole',
-            style=Pack(padding=(0, 5))
-        )
-
-        # Add all widgets to the box
-        self.add(self.status_label)
-        self.add(self.timer_label)
-        self.add(toga.Box(
-            children=[self.record_button, self.pause_button],
-            style=Pack(direction=ROW, padding=5)
+        
+        buttons_box.add(self.record_button)
+        buttons_box.add(self.pause_button)
+        main_content.add(buttons_box)
+        
+        # Log view section
+        log_box = toga.Box(style=Pack(
+            direction=COLUMN,
+            padding=(20, 0, 0, 0),
+            flex=1
         ))
-        self.add(self.mic_label)
-        self.add(self.system_label)
+        
+        log_label = toga.Label(
+            'Activity Log',
+            style=Pack(font_size=16, font_weight='bold', padding=(0, 0, 5, 0))
+        )
+        log_box.add(log_label)
+        
+        # Create log view with monospace font and scrolling
+        self.log_view = toga.MultilineTextInput(
+            readonly=True,
+            style=Pack(
+                flex=1,
+                font_family='monospace',
+                font_size=12,
+                height=200,  # Fixed height instead of min_height
+                padding=(5, 0)
+            )
+        )
+        log_box.add(self.log_view)
+        main_content.add(log_box)
+        
+        # Add the main content box to the screen
+        self.add(main_content)
         
         # Load initial profile if available
         if self.profiles:
@@ -431,25 +507,64 @@ class SettingsScreen(toga.Box):
         # Create settings sections
         self.add(toga.Label('Audio Settings', style=Pack(padding=(0, 5))))
         
+        # Import audio utilities
+        from ..audio.audio import get_input_devices
+        from ..core.config import config
+        
+        # Get available microphones
+        try:
+            devices = get_input_devices()
+            mic_names = [f"{d['name']}{' (Default)' if d['is_default'] else ''}" for d in devices]
+            
+            # Get the configured microphone name from config
+            configured_mic = config._config.get('audio', {}).get('devices', {}).get('microphone', {}).get('name')
+            
+            # Find the index of the configured mic in our list
+            default_index = 0
+            if configured_mic:
+                for i, name in enumerate(mic_names):
+                    if configured_mic in name:  # This handles both with and without (Default) suffix
+                        default_index = i
+                        break
+                        
+        except Exception as e:
+            mic_names = ['Error loading devices']
+            default_index = 0
+            print(f"Error loading audio devices: {e}")
+        
         # Microphone selection
-        self.mic_selection = toga.Selection(items=['Default Microphone'])
-        self.add(toga.Box(
+        self.mic_selection = toga.Selection(
+            items=mic_names if mic_names else ['No devices found'],
+            value=mic_names[default_index] if mic_names else None
+        )
+        
+        # Refresh devices button (just emoji)
+        self.refresh_button = toga.Button(
+            '🔄',
+            on_press=self.refresh_devices,
+            style=Pack(padding=(0, 5))
+        )
+        
+        mic_box = toga.Box(
             children=[
                 toga.Label('Microphone: '),
-                self.mic_selection
+                self.mic_selection,
+                self.refresh_button
             ],
             style=Pack(direction=ROW, padding=5)
-        ))
+        )
+        self.add(mic_box)
         
         # System audio selection
         self.system_selection = toga.Selection(items=['BlackHole'])
-        self.add(toga.Box(
+        system_box = toga.Box(
             children=[
                 toga.Label('System Audio: '),
                 self.system_selection
             ],
             style=Pack(direction=ROW, padding=5)
-        ))
+        )
+        self.add(system_box)
         
         # Hotkey settings
         self.add(toga.Label('Hotkey Settings', style=Pack(padding=(10, 5))))
@@ -464,27 +579,134 @@ class SettingsScreen(toga.Box):
         for name, default in hotkeys.items():
             input_box = toga.TextInput(value=default)
             self.hotkey_boxes[name] = input_box
-            self.add(toga.Box(
+            hotkey_box = toga.Box(
                 children=[
                     toga.Label(f'{name}: '),
                     input_box
                 ],
                 style=Pack(direction=ROW, padding=5)
-            ))
+            )
+            self.add(hotkey_box)
         
         # Save button
-        self.add(toga.Button(
+        self.save_button = toga.Button(
             'Save Settings',
             on_press=self.save_settings,
-            style=Pack(padding=5)
-        ))
+            style=Pack(padding=1)
+        )
+        self.add(self.save_button)
+        
+        # Set up selection handlers
+        self.mic_selection.on_select = self.on_mic_selected
+    
+    def on_mic_selected(self, widget):
+        """Handle microphone selection."""
+        if not widget or not widget.value or 'Error' in widget.value:
+            return
+            
+        # Strip the (Default) suffix if present
+        device_name = widget.value.replace(' (Default)', '')
+        
+        # Get the full device info
+        from ..audio.audio import get_input_devices
+        try:
+            devices = get_input_devices()
+            selected_device = next((d for d in devices if d['name'] == device_name), None)
+            
+            if not selected_device:
+                print(f"Could not find device info for {device_name}")
+                return
+                
+            # Update the config with complete device information
+            from ..core.config import config
+            if 'audio' not in config._config:
+                config._config['audio'] = {}
+            if 'devices' not in config._config['audio']:
+                config._config['audio']['devices'] = {}
+                
+            # Update the microphone configuration with all available details, ensuring integers
+            config._config['audio']['devices']['microphone'] = {
+                'name': selected_device['name'],
+                'index': int(selected_device['index']),
+                'channels': int(selected_device['channels']),
+                'sample_rate': int(selected_device['sample_rate']),
+                'input_latency': selected_device['input_latency'],  # This can stay float
+                'is_default': selected_device['is_default'],
+            }
+            
+            # Update the main audio settings to match the device's native capabilities
+            config._config['audio']['channels'] = int(selected_device['channels'])
+            config._config['audio']['sample_rate'] = int(selected_device['sample_rate'])
+            
+            config.save()
+            print(f"Updated config with complete info for {device_name}")
+            
+        except Exception as e:
+            print(f"Error updating config: {e}")
+            import traceback
+            print(traceback.format_exc())
+    
+    def refresh_devices(self, widget):
+        """Refresh the list of audio devices."""
+        from ..audio.audio import get_input_devices
+        from ..core.config import config
+        try:
+            devices = get_input_devices()
+            mic_names = [f"{d['name']}{' (Default)' if d['is_default'] else ''}" for d in devices]
+            
+            # Get the configured microphone name from config
+            configured_mic = config._config.get('audio', {}).get('devices', {}).get('microphone', {}).get('name')
+            
+            # Find the index of the configured mic in our list
+            default_index = 0
+            if configured_mic:
+                for i, name in enumerate(mic_names):
+                    if configured_mic in name:  # This handles both with and without (Default) suffix
+                        default_index = i
+                        break
+            
+            # Update items and selection
+            self.mic_selection.items = mic_names if mic_names else ['No devices found']
+            if mic_names:
+                self.mic_selection.value = mic_names[default_index]
+                
+            if hasattr(self.app, 'main_window'):
+                self.app.main_window.info_dialog(
+                    'Devices Refreshed',
+                    'Audio devices have been refreshed successfully.'
+                )
+        except Exception as e:
+            if hasattr(self.app, 'main_window'):
+                self.app.main_window.error_dialog(
+                    'Error',
+                    f'Failed to refresh audio devices: {str(e)}'
+                )
     
     def save_settings(self, widget):
-        # TODO: Implement settings save
-        self.app.main_window.info_dialog(
-            'Settings Saved',
-            'Your settings have been saved successfully.'
-        )
+        """Save the current settings."""
+        try:
+            # Save hotkey settings
+            from ..core.config import config
+            if 'hotkeys' not in config._config:
+                config._config['hotkeys'] = {}
+                
+            for name, input_box in self.hotkey_boxes.items():
+                key = name.lower().replace('/', '_')
+                config._config['hotkeys'][key] = input_box.value
+                
+            config.save()
+            
+            if hasattr(self.app, 'main_window'):
+                self.app.main_window.info_dialog(
+                    'Settings Saved',
+                    'Your settings have been saved successfully.'
+                )
+        except Exception as e:
+            if hasattr(self.app, 'main_window'):
+                self.app.main_window.error_dialog(
+                    'Error',
+                    f'Failed to save settings: {str(e)}'
+                )
 
 class TranscriberApp(toga.App):
     def __init__(self):
@@ -495,19 +717,38 @@ class TranscriberApp(toga.App):
         self.recording_start_time = None
         self.record_command = None
         self.pause_command = None
-        self.current_profile = None  # Store the current profile
+        self.current_profile = None
+        self._timer_update_task = None
 
     def startup(self):
         # Create main window
         self.main_window = toga.MainWindow(title=self.formal_name)
         
+        # Create screens
+        self.home_screen = HomeScreen(self)
+        self.file_viewer_screen = FileViewerScreen(self)
+        self.settings_screen = SettingsScreen(self)
+        
+        # Set up logger UI callback
+        def update_log(message: str, clear: bool = False):
+            if clear:
+                self.home_screen.log_view.value = ""
+            else:
+                # Append message and scroll to bottom
+                current_text = self.home_screen.log_view.value
+                self.home_screen.log_view.value = current_text + message
+                # Note: Toga doesn't have direct scroll control, but setting value should auto-scroll
+        
+        log.set_ui_callback(update_log)
+        
         # Create commands
         self.record_command = toga.Command(
             self.toggle_recording,
-            text='Record',
+            text='Start/Stop',
             tooltip='Start/Stop Recording',
             shortcut=toga.Key.MOD_1 + 'r',
             group=toga.Group.COMMANDS,
+            icon='resources/record.png',
             section=0,
             order=0,
         )
@@ -518,6 +759,7 @@ class TranscriberApp(toga.App):
             tooltip='Pause/Resume Recording',
             shortcut=toga.Key.MOD_1 + 'p',
             group=toga.Group.COMMANDS,
+            icon='resources/pause.png',
             section=0,
             order=1,
             enabled=False
@@ -527,11 +769,6 @@ class TranscriberApp(toga.App):
         
         # Add commands to toolbar
         self.main_window.toolbar.add(self.record_command, self.pause_command)
-        
-        # Create screens
-        self.home_screen = HomeScreen(self)
-        self.file_viewer_screen = FileViewerScreen(self)
-        self.settings_screen = SettingsScreen(self)
         
         # Create tab container
         self.tabs = toga.OptionContainer(
@@ -559,11 +796,27 @@ class TranscriberApp(toga.App):
         self.hotkey_manager.register_handler("pause_recording", lambda: self.toggle_pause(self.pause_command))
         Thread(target=self.hotkey_manager.start, daemon=True).start()
 
-    def toggle_recording(self, command, **kwargs):
+    def update_timer_label(self, widget=None):
+        """Update the timer label on the main thread."""
+        if self.is_recording and self.recording_start_time:
+            elapsed = time.time() - self.recording_start_time
+            time_str = time.strftime("%M:%S", time.gmtime(elapsed))
+            self.home_screen.timer_label.text = time_str
+        return self.is_recording  # Return False to stop the background task when recording stops
+
+    def update_timer(self):
+        """Background thread for timer updates."""
+        while True:
+            if self.is_recording and self.recording_start_time:
+                self.add_background_task(self.update_timer_label)
+            time.sleep(0.1)
+
+    def toggle_recording(self, command=None, widget=None, **kwargs):
         """Toggle recording state."""
         if not self.is_recording:
             # Check if a profile is selected
             if not self.current_profile:
+                log.error("No profile selected")
                 self.main_window.error_dialog(
                     'No Profile Selected',
                     'Please select a profile before starting recording.'
@@ -571,48 +824,66 @@ class TranscriberApp(toga.App):
                 return True
                 
             # Start recording
-            self.recording_manager.start_recording()
-            self.is_recording = True
-            self.recording_start_time = time.time()
-            self.home_screen.record_button.label = '⏹️ Stop Recording'
-            self.home_screen.status_label.text = '⏺️ Recording'
-            self.home_screen.pause_button.enabled = True
-            self.pause_command.enabled = True
+            try:
+                self.recording_manager.start_recording()
+                log.recording("Started recording")
+                self.is_recording = True
+                self.recording_start_time = time.time()
+                self.home_screen.record_button.text = '⏹️ Stop Recording'
+                self.home_screen.status_label.text = '⏺️ Recording'
+                self.home_screen.pause_button.enabled = True
+                self.pause_command.enabled = True
+                
+                # Start timer updates
+                self._timer_update_task = self.add_background_task(self.update_timer_label)
+            except Exception as e:
+                log.error(f"Error starting recording: {str(e)}")
+                return True
         else:
             # Stop recording
-            self.recording_manager.stop_recording()
-            self.is_recording = False
-            self.recording_start_time = None
-            self.home_screen.record_button.label = '🎙️ Start Recording'
-            self.home_screen.status_label.text = '⏹️ Ready to Record'
-            self.home_screen.pause_button.enabled = False
-            self.home_screen.pause_button.label = '⏸️ Pause'
-            self.pause_command.enabled = False
-            # Refresh file viewer
-            self.file_viewer_screen.refresh_files()
+            try:
+                self.recording_manager.stop_recording()
+                log.recording("Stopped recording")
+                self.is_recording = False
+                self.recording_start_time = None
+                self.home_screen.record_button.text = '🎙️ Start Recording'
+                self.home_screen.status_label.text = '⏹️ Ready to Record'
+                self.home_screen.pause_button.enabled = False
+                self.home_screen.pause_button.text = '⏸️ Pause'
+                self.pause_command.enabled = False
+                
+                # Stop timer updates
+                if self._timer_update_task:
+                    self._timer_update_task.cancel()
+                    self._timer_update_task = None
+                    
+                # Reset timer display
+                self.home_screen.timer_label.text = '00:00'
+                
+                # Refresh file viewer
+                self.file_viewer_screen.refresh_files()
+            except Exception as e:
+                log.error(f"Error stopping recording: {str(e)}")
+                return True
         return True
 
-    def toggle_pause(self, command, **kwargs):
+    def toggle_pause(self, command=None, widget=None, **kwargs):
         """Toggle pause state."""
         if self.is_recording:
-            self.recording_manager.toggle_pause()
-            if self.recording_manager.is_paused:
-                self.home_screen.status_label.text = '⏸️ Paused'
-                self.home_screen.pause_button.label = '▶️ Resume'
-            else:
-                self.home_screen.status_label.text = '⏺️ Recording'
-                self.home_screen.pause_button.label = '⏸️ Pause'
+            try:
+                self.recording_manager.toggle_pause()
+                if self.recording_manager.is_paused:
+                    log.info("Recording paused")
+                    self.home_screen.status_label.text = '⏸️ Paused'
+                    self.home_screen.pause_button.text = '▶️ Resume'
+                else:
+                    log.info("Recording resumed")
+                    self.home_screen.status_label.text = '⏺️ Recording'
+                    self.home_screen.pause_button.text = '⏸️ Pause'
+            except Exception as e:
+                log.error(f"Error toggling pause: {str(e)}")
         return True
-
-    def update_timer(self):
-        """Update the timer label."""
-        while True:
-            if self.is_recording and self.recording_start_time:
-                elapsed = time.time() - self.recording_start_time
-                time_str = time.strftime("%M:%S", time.gmtime(elapsed))
-                self.home_screen.timer_label.text = time_str
-            time.sleep(0.1)
 
 def main():
     app = TranscriberApp()
-    return app.main_loop() 
+    return app.main_loop()

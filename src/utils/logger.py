@@ -26,6 +26,11 @@ class Logger:
     def __init__(self):
         self.console = Console(theme=THEME)
         self.debug_mode = False
+        self.ui_callback = None
+        
+    def set_ui_callback(self, callback):
+        """Set a callback function that will be called with log messages for UI display."""
+        self.ui_callback = callback
         
     def _format_message(self, message: str, style: Optional[str] = None) -> str:
         timestamp = datetime.now().strftime("%H:%M:%S")
@@ -34,54 +39,74 @@ class Logger:
             formatted = f"[{style}]{message}[/{style}]\n"
         return formatted
         
+    def _log_to_ui(self, message: str):
+        """Send log message to UI if callback is set."""
+        if self.ui_callback:
+            timestamp = datetime.now().strftime("%H:%M:%S")
+            ui_message = f"{timestamp} {message}\n"
+            self.ui_callback(ui_message)
+        
     def info(self, message: str):
         """Log an informational message"""
         self.console.print(self._format_message(message, "info"))
+        self._log_to_ui(f"ℹ️ {message}")
         
     def warning(self, message: str):
         """Log a warning message"""
         self.console.print(self._format_message(f"⚠️  {message}\n", "warning"))
+        self._log_to_ui(f"⚠️ {message}")
         
     def error(self, message: str):
         """Log an error message"""
         self.console.print(self._format_message(f"❌ {message}", "error"))
+        self._log_to_ui(f"❌ {message}")
         
     def success(self, message: str):
         """Log a success message"""
         self.console.print(self._format_message(f"✅ {message}", "success"))
+        self._log_to_ui(f"✅ {message}")
         
     def done(self, message: str):
         """Log a done message"""
         self.console.print(self._format_message(f"🎉 {message}", "done"))
+        self._log_to_ui(f"🎉 {message}")
         
     def debug(self, message: str):
         """Log a debug message (only in debug mode)"""
         if self.debug_mode:
             self.console.print(self._format_message(f"🔍 {message}", "debug"))
+            self._log_to_ui(f"🔍 {message}")
             
     def recording(self, message: str):
         """Log a recording-related message"""
         self.console.print(self._format_message(f"🎤 {message}", "recording"))
+        self._log_to_ui(f"🎤 {message}")
         
     def transcribing(self, message: str):
         """Log a transcription-related message"""
         self.console.print(self._format_message(f"📝 {message}", "transcribing"))
+        self._log_to_ui(f"📝 {message}")
         
     def save(self, message: str):
-        """Log a transcription-related message"""
+        """Log a save-related message"""
         self.console.print(self._format_message(f"💾 {message}", "save"))
+        self._log_to_ui(f"💾 {message}")
         
     def status(self, message: str):
         """Update the current status"""
         self.console.print(self._format_message(message))
+        self._log_to_ui(message)
 
     def header(self, message: str):
         """Log a header message that stands out"""
         self.console.print(f"\n[header]═══ {message} ═══[/header]\n")
+        self._log_to_ui(f"\n═══ {message} ═══\n")
         
     def clear(self):
-        """Clear the console"""
+        """Clear the console and UI log if available"""
         self.console.clear()
+        if self.ui_callback:
+            self.ui_callback("", clear=True)  # Special flag to clear the log
 
     def print_header(self):
         """Print the app header."""
