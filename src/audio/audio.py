@@ -257,15 +257,32 @@ class AudioRecorder:
         log.success("Recording stopped successfully")
 
     def save(self, output_file):
-        """Save recorded audio to file."""
+        """Save recorded audio to file and convert to 16kHz mono WAV."""
         log.debug(f"Saving {len(self.frames)} frames to {output_file}")
-        wf = wave.open(output_file, "wb")
+
+        # Save initial WAV file
+        temp_file = output_file + ".temp.wav"
+        wf = wave.open(temp_file, "wb")
         wf.setnchannels(self.mic_channels)
         wf.setsampwidth(self.p.get_sample_size(pyaudio.paInt16))
         wf.setframerate(config.audio.sample_rate)
         wf.writeframes(b"".join(self.frames))
         wf.close()
-        self.frames = []  # Clear frames after saving
+
+        # Convert to 16kHz mono WAV
+        try:
+            audio = AudioSegment.from_wav(temp_file)
+            audio = audio.set_frame_rate(16000).set_channels(1).set_sample_width(2)
+            audio.export(output_file, format="wav")
+            os.remove(temp_file)  # Clean up temporary file
+            log.debug(f"Successfully converted audio to 16kHz mono WAV: {output_file}")
+        except Exception as e:
+            log.error(f"Error converting audio format: {e}")
+            # If conversion fails, keep the original file
+            os.rename(temp_file, output_file)
+            log.warning("Keeping original audio format")
+
+        self.frames = []
 
     def __del__(self):
         """Cleanup PyAudio."""
@@ -282,20 +299,24 @@ def get_input_devices():
     """Get list of input devices with detailed information."""
     p = pyaudio.PyAudio()
     input_devices = []
-    default_input_index = p.get_default_input_device_info()['index']
+    default_input_index = p.get_default_input_device_info()["index"]
 
     for i in range(p.get_device_count()):
         try:
             device_info = p.get_device_info_by_index(i)
-            if int(device_info["maxInputChannels"]) > 0:  # Cast to int to fix type error
-                input_devices.append({
-                    "index": i,
-                    "name": device_info["name"],
-                    "channels": int(device_info["maxInputChannels"]),
-                    "sample_rate": int(device_info["defaultSampleRate"]),
-                    "input_latency": float(device_info["defaultLowInputLatency"]),
-                    "is_default": i == default_input_index
-                })
+            if (
+                int(device_info["maxInputChannels"]) > 0
+            ):  # Cast to int to fix type error
+                input_devices.append(
+                    {
+                        "index": i,
+                        "name": device_info["name"],
+                        "channels": int(device_info["maxInputChannels"]),
+                        "sample_rate": int(device_info["defaultSampleRate"]),
+                        "input_latency": float(device_info["defaultLowInputLatency"]),
+                        "is_default": i == default_input_index,
+                    }
+                )
         except Exception as e:
             log.debug(f"Error getting info for device {i}: {e}")
             continue
@@ -315,7 +336,7 @@ def select_audio_device():
     # Create device choices with formatted strings
     choices = []
     for d in devices:
-        default_marker = " (Default)" if d['is_default'] else ""
+        default_marker = " (Default)" if d["is_default"] else ""
         choice_str = (
             f"{d['name']}{default_marker}\n"
             f"   Channels: {d['channels']}, Sample Rate: {int(d['sample_rate'])}Hz, "
@@ -348,7 +369,7 @@ def select_audio_device():
             "channels": selected_device["channels"],
             "sample_rate": selected_device["sample_rate"],
             "input_latency": selected_device["input_latency"],
-            "is_default": selected_device["is_default"]
+            "is_default": selected_device["is_default"],
         }
 
         # Update the main audio settings to match the device's native capabilities
