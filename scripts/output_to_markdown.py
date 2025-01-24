@@ -7,12 +7,24 @@ from src.utils.utils import get_app_dir
 def run_action(artifact, action_config):
     print("=== Markdown Output Action ===")
 
-    # Get session directory from config, fallback to app directory
-    session_dir = action_config.get("session_dir", str(get_app_dir()))
-    filename = action_config.get("filename", "output.md")
+    # Get session directory from config, if not provided use the most recent session directory
+    if "session_dir" not in action_config:
+        # Find most recent session directory
+        meetings_dir = os.path.join(get_app_dir(), "meetings")
+        sessions = [
+            d
+            for d in os.listdir(meetings_dir)
+            if os.path.isdir(os.path.join(meetings_dir, d))
+        ]
+        if sessions:
+            latest_session = max(sessions)  # Gets the most recent timestamp directory
+            session_dir = os.path.join(meetings_dir, latest_session)
+        else:
+            session_dir = str(get_app_dir())
+    else:
+        session_dir = action_config["session_dir"]
 
-    # Create session directory if it doesn't exist
-    os.makedirs(session_dir, exist_ok=True)
+    filename = action_config.get("filename", "output.md")
 
     # Create full file path in session directory
     file_path = os.path.join(session_dir, filename)
