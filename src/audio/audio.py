@@ -234,7 +234,7 @@ class AudioRecorder:
         # Now join the thread with a shorter timeout
         if hasattr(self, "record_thread"):
             log.debug("Waiting for recording thread to finish...")
-            self.record_thread.join(timeout=0.5)  # Reduced timeout to 500ms
+            self.record_thread.join(timeout=3)
             if self.record_thread.is_alive():
                 log.warning(
                     "Recording thread still alive after timeout, proceeding anyway"
