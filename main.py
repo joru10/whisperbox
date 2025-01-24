@@ -41,13 +41,11 @@ def cli_mode(ai_provider=None, debug=False, profile=None):
 
         # Print header and instructions
         log.print_header()
-        log.info("\nSimple Recording Controls:")
-        log.info("- Press Enter to start recording")
-        log.info("- Press Enter again to stop recording")
-        log.info("- Press Ctrl+C to quit\n")
+        log.print_instructions()
 
-        # Initialize recording manager
+        # Initialize managers
         recording_manager = RecordingManager()
+        hotkey_manager = HotkeyManager(config)
 
         # Initialize AI service if provider specified
         if ai_provider:
@@ -64,6 +62,8 @@ def cli_mode(ai_provider=None, debug=False, profile=None):
                 profile_data = load_profile_yaml(profile)
                 log.info(f"Using profile: {profile_data.get('name')}")
             except ValueError as e:
+                # Profile errors are already logged with friendly messages
+                # Just exit gracefully
                 return
             except Exception as e:
                 log.error(f"Unexpected error loading profile: {str(e)}")
@@ -71,44 +71,69 @@ def cli_mode(ai_provider=None, debug=False, profile=None):
                     log.debug(traceback.format_exc())
                 return
 
+        # Define handler functions
+        def start_recording():
+            log.recording("Starting recording...")
+            recording_manager.start_recording()
+
+        def stop_recording_and_process():
+            log.recording("Stopping recording...")
+            log.info("(Due to a temporary bug, you may need to press a key to continue if it gets stuck here)")
+            audio_file_path = recording_manager.stop_recording()
+            transcript_path = get_transcript_path(audio_file_path)
+
+            if transcript_path and profile:
+                logger.info(f"Processing transcript with profile: {profile}...")
+                # run AI
+                processed_output = process_transcript(
+                    transcript_path,
+                    ai_provider=ai_provider,
+                    prompt=profile_data.get("prompt", ""),
+                )
+                # run the actions
+                run_profile_actions(profile_data, processed_output)
+                
+                time.sleep(1)
+                log.done("All done! Ready for the next recording 🫡")
+
+        def pause_recording():
+            log.recording("Toggling recording pause...")
+            recording_manager.toggle_pause()
+
+        def quit_app():
+            log.info("Quitting application...")
+            if recording_manager.is_recording:
+                recording_manager.stop_recording()
+            hotkey_manager.stop()
+            return True  # Signal to exit
+
+        # Register handlers
+        hotkey_manager.register_handler("start_recording", start_recording)
+        hotkey_manager.register_handler("stop_recording", stop_recording_and_process)
+        hotkey_manager.register_handler("pause_recording", pause_recording)
+
+        # Start hotkey listener in a separate thread
+        hotkey_thread = Thread(target=hotkey_manager.start, daemon=True)
+        hotkey_thread.start()
+
         try:
+            # Main loop - just wait for keyboard interrupt
             while True:
                 try:
-                    if not recording_manager.is_recording:
-                        input("Press Enter to start recording...")
-                        log.recording("Starting recording...")
-                        recording_manager.start_recording()
-                    else:
-                        input("Recording in progress. Press Enter to stop...")
-                        log.recording("Stopping recording...")
-                        audio_file_path = recording_manager.stop_recording()
-                        transcript_path = get_transcript_path(audio_file_path)
-
-                        if transcript_path and profile:
-                            logger.info(f"Processing transcript with profile: {profile}...")
-                            # run AI
-                            processed_output = process_transcript(
-                                transcript_path,
-                                ai_provider=ai_provider,
-                                prompt=profile_data.get("prompt", ""),
-                            )
-                            # run the actions
-                            run_profile_actions(profile_data, processed_output)
-                            
-                        time.sleep(1)
-                        log.done("All done! Ready for the next recording 🫡")
-
-                except EOFError:
+                    time.sleep(0.1)  # Reduce CPU usage
+                except (EOFError, KeyboardInterrupt):
                     break
 
         except KeyboardInterrupt:
             log.warning("\nReceived keyboard interrupt, shutting down...")
             if recording_manager.is_recording:
                 recording_manager.stop_recording()
+            hotkey_manager.stop()
 
         log.info("\nShutting down...")
         if recording_manager.is_recording:
             recording_manager.stop_recording()
+        hotkey_manager.stop()
         log.success("Goodbye!")
 
     except Exception as e:
