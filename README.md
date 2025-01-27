@@ -2,21 +2,30 @@
 
 A powerful command-line tool for transcribing and analyzing audio recordings with AI assistance. Record meetings, lectures, or any audio directly from your terminal and get instant transcriptions with summaries, sentiment analysis, and topic detection.
 
+Available in two versions:
+
+- Free: Command-line interface (CLI) version - Open source and MIT licensed
+- Paid: GUI version with native desktop interface - One-time $10 purchase to support development
+
+> The GUI version offers the same powerful features in a user-friendly interface, perfect for those who prefer not to use the terminal.
+> Purchase helps support ongoing development of free and open source AI tools.
+> [Purchase WhisperBox GUI version here](https://tooluse.gumroad.com/l/lqjyw)
+
 ## Features
 
 - Live audio recording through terminal
 - Multiple transcription models via Whisper AI
 - AI-powered analysis including:
-  - Text summarization
-  - Sentiment analysis
-  - Intent detection
-  - Topic extraction
+  - Meeting summaries and action items
+  - Keynote presentation generation
+  - Speech quality feedback
+  - Modify voice input for any application
 - Support for multiple AI providers:
-  - Anthropic Claude
-  - OpenAI GPT-4
+  - Anthropic
+  - OpenAI
   - Groq
   - Ollama (local models)
-- Export to Markdown (with optional Obsidian vault integration)
+- Export to Markdown
 - Rich terminal UI with color-coded output
 - Configurable audio settings and output formats
 
@@ -28,20 +37,7 @@ A powerful command-line tool for transcribing and analyzing audio recordings wit
 
 ## Installation
 
-1. Clone the repository:
-
-```bash
-git clone https://github.com/tooluseai/whisperbox.git
-cd whisperbox
-```
-
-2. Install dependencies using Poetry:
-
-```bash
-poetry install
-```
-
-3. Install FFmpeg if not already installed:
+1. Install FFmpeg if not already installed:
 
 ```bash
 # On macOS using Homebrew
@@ -51,22 +47,23 @@ brew install ffmpeg
 sudo apt-get install ffmpeg
 ```
 
-4. Install BlackHole (MacOS only)
+2. Install BlackHole for system audio capture (MacOS only)
 
 ```bash
 brew install blackhole-2ch
 ```
 
-5. Configure your API keys:
-   - Copy `config.yaml` to create your local configuration
-   - Add your API keys for the services you plan to use:
-     - OpenAI
-     - Anthropic
-     - Groq
-   - Alternatively, set them as environment variables:
-     - `OPENAI_API_KEY`
-     - `ANTHROPIC_API_KEY`
-     - `GROQ_API_KEY`
+3. Install portaudio for audio capture
+
+```bash
+brew install portaudio
+```
+
+4. Install whisperbox from pip
+
+```bash
+pip install whisperbox
+```
 
 ## Usage
 
@@ -75,7 +72,7 @@ brew install blackhole-2ch
 The first time you run the app, you will go through the setup wizard.
 
 ```bash
-poetry run wb
+wb
 ```
 
 Then select the Whisper model you want to use. The smaller models are faster and quicker to download but the larger models are more accurate.
@@ -92,35 +89,35 @@ Then you will have the option to view the config file location so you can custom
 1. Start recording:
 
 ```bash
-poetry run wb
+wb
 ```
 
 2. Press Enter to stop recording when finished.
 
 ### Advanced Options
 
+- Specify a profile:
+
+```bash
+wb --profile monologue_to_keynote
+```
+
 - Specify a Whisper model:
 
 ```bash
-poetry run transcribe --model large
+wb --model large
 ```
 
 - Enable full analysis (summary, sentiment, intent, topics):
 
 ```bash
-poetry run transcribe --analyze
-```
-
-- Export to Obsidian vault:
-
-```bash
-poetry run transcribe --vault ~/Documents/ObsidianVault
+wb --analyze
 ```
 
 - Enable verbose output:
 
 ```bash
-poetry run transcribe --verbose
+wb --verbose
 ```
 
 ## Configuration
@@ -136,19 +133,121 @@ The `config.yaml` file allows you to customize:
 
 See the example `config.yaml` for all available options.
 
-## Project Structure
+## Extending WhisperBox
 
+WhisperBox can be customized to handle your recordings exactly how you want. There are two main ways to extend it:
+
+1. **Profiles**: Define what to do with your recordings
+2. **Scripts**: Create custom actions for your profiles
+
+### Creating Custom Profiles
+
+A profile is a simple YAML file that tells WhisperBox:
+
+- What to do with your recording
+- How to process the transcript
+- Where to send the results
+
+To create a profile:
+
+1. Create a new `.yaml` file in the `profiles/` folder (e.g., `my_profile.yaml`)
+2. Add these three main sections:
+
+```yaml
+# The name that appears in WhisperBox
+name: my_profile
+
+# Instructions for processing your recording
+prompt: >
+  Here's where you tell WhisperBox what to do with your recording.
+  For example: "Create a summary with these key points..."
+
+  The recording will appear here: {transcript}
+
+# What to do with the results
+actions:
+  - script: output_to_markdown # Save as a file
+  - script: copy_to_clipboard # Copy to clipboard
 ```
-whisperbox/
-├── pyproject.toml       # Poetry project configuration
-├── config.yaml         # Application configuration
-├── main.py            # Entry point
-└── src/
-    ├── ai_service.py   # AI provider integrations
-    ├── config.py       # Configuration management
-    ├── transcribe.py   # Core transcription logic
-    └── audio.py        # Audio recording utilities
+
+### Built-in Actions
+
+WhisperBox comes with several ready-to-use actions:
+
+- `output_to_markdown`: Save as a Markdown file
+- `copy_to_clipboard`: Copy to your clipboard
+- `output_to_terminal`: Show in the terminal
+- `send_post_request`: Send to a webhook URL
+
+You can use multiple actions in a single profile:
+
+```yaml
+actions:
+  # Save the file
+  - script: output_to_markdown
+    config:
+      filename: meeting_notes.md
+
+  # Also copy it to clipboard
+  - script: copy_to_clipboard
 ```
+
+### Creating Custom Scripts
+
+Want to do something more custom? You can create your own action scripts:
+
+1. Create a new Python file in the `scripts/` folder (e.g., `my_script.py`)
+2. Add a `run_action` function that handles the text:
+
+```python
+def run_action(text, config):
+    """
+    text: The processed recording
+    config: Any settings from your profile
+    """
+    print("I got the text:", text)
+    # Do whatever you want with the text here!
+```
+
+3. Use it in your profile:
+
+```yaml
+actions:
+  - script: my_script
+    config:
+      any_setting: value
+```
+
+### Example: Meeting Summary Profile
+
+Here's a complete example that creates meeting summaries:
+
+```yaml
+name: meeting_summary
+prompt: >
+  Create a clear summary of this meeting with:
+  1. Key topics and decisions
+  2. Action items and who's responsible
+  3. Important deadlines or dates
+
+  Meeting transcript: {transcript}
+
+actions:
+  # Save as a file
+  - script: output_to_markdown
+    config:
+      filename: summary.md
+
+  # Also copy to clipboard
+  - script: copy_to_clipboard
+```
+
+### Tips
+
+- Test your profiles with short recordings first
+- Check the `profiles/` folder for more examples
+- Use multiple actions to create powerful workflows
+- Keep your prompts clear and specific
 
 ## Contributing
 

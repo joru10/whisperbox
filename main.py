@@ -9,12 +9,20 @@ from src.audio.recording_manager import RecordingManager
 from src.utils.logger import log
 from src.core.setup import setup
 from src.audio.audio import list_audio_devices
-from src.utils.utils import is_first_run, create_app_directory_structure, get_transcript_path, get_app_dir, reveal_in_file_manager
+from src.utils.utils import (
+    is_first_run,
+    create_app_directory_structure,
+    get_transcript_path,
+    get_app_dir,
+    reveal_in_file_manager,
+)
+from src.utils.model_utils import check_whisper_model
 from src.ai.process_transcript import process_transcript
 from src.ai.ai_service import AIService
 from src.utils.profile_parser import load_profile_yaml, get_available_profiles
 from src.utils.profile_executor import run_profile_actions
 import traceback
+from pathlib import Path
 
 
 def cli_mode(ai_provider=None, debug=False, profile=None):
@@ -28,13 +36,18 @@ def cli_mode(ai_provider=None, debug=False, profile=None):
         )
         logger = logging.getLogger(__name__)
 
+        # Check for required Whisper model
+        check_whisper_model()
+
         # Print header and instructions
         log.print_header()
-        log.print_instructions()
+        log.info("\nSimple Recording Controls:")
+        log.info("- Press Enter to start recording")
+        log.info("- Press Enter again to stop recording")
+        log.info("- Press Ctrl+C to quit\n")
 
-        # Initialize managers
+        # Initialize recording manager
         recording_manager = RecordingManager()
-        hotkey_manager = HotkeyManager(config)
 
         # Initialize AI service if provider specified
         if ai_provider:
@@ -51,8 +64,6 @@ def cli_mode(ai_provider=None, debug=False, profile=None):
                 profile_data = load_profile_yaml(profile)
                 log.info(f"Using profile: {profile_data.get('name')}")
             except ValueError as e:
-                # Profile errors are already logged with friendly messages
-                # Just exit gracefully
                 return
             except Exception as e:
                 log.error(f"Unexpected error loading profile: {str(e)}")
@@ -60,69 +71,44 @@ def cli_mode(ai_provider=None, debug=False, profile=None):
                     log.debug(traceback.format_exc())
                 return
 
-        # Define handler functions
-        def start_recording():
-            log.recording("Starting recording...")
-            recording_manager.start_recording()
-
-        def stop_recording_and_process():
-            log.recording("Stopping recording...")
-            log.info("(Due to a temporary bug, you may need to press a key to continue if it gets stuck here)")
-            audio_file_path = recording_manager.stop_recording()
-            transcript_path = get_transcript_path(audio_file_path)
-
-            if transcript_path and profile:
-                logger.info(f"Processing transcript with profile: {profile}...")
-                # run AI
-                processed_output = process_transcript(
-                    transcript_path,
-                    ai_provider=ai_provider,
-                    prompt=profile_data.get("prompt", ""),
-                )
-                # run the actions
-                run_profile_actions(profile_data, processed_output)
-                
-                time.sleep(1)
-                log.done("All done! Ready for the next recording 🫡")
-
-        def pause_recording():
-            log.recording("Toggling recording pause...")
-            recording_manager.toggle_pause()
-
-        def quit_app():
-            log.info("Quitting application...")
-            if recording_manager.is_recording:
-                recording_manager.stop_recording()
-            hotkey_manager.stop()
-            return True  # Signal to exit
-
-        # Register handlers
-        hotkey_manager.register_handler("start_recording", start_recording)
-        hotkey_manager.register_handler("stop_recording", stop_recording_and_process)
-        hotkey_manager.register_handler("pause_recording", pause_recording)
-
-        # Start hotkey listener in a separate thread
-        hotkey_thread = Thread(target=hotkey_manager.start, daemon=True)
-        hotkey_thread.start()
-
         try:
-            # Main loop - just wait for keyboard interrupt
             while True:
                 try:
-                    time.sleep(0.1)  # Reduce CPU usage
-                except (EOFError, KeyboardInterrupt):
+                    if not recording_manager.is_recording:
+                        input("Press Enter to start recording...")
+                        log.recording("Starting recording...")
+                        recording_manager.start_recording()
+                    else:
+                        input("Recording in progress. Press Enter to stop...")
+                        log.recording("Stopping recording...")
+                        audio_file_path = recording_manager.stop_recording()
+                        transcript_path = get_transcript_path(audio_file_path)
+
+                        if transcript_path and profile:
+                            logger.info(f"Processing transcript with profile: {profile}...")
+                            # run AI
+                            processed_output = process_transcript(
+                                transcript_path,
+                                ai_provider=ai_provider,
+                                prompt=profile_data.get("prompt", ""),
+                            )
+                            # run the actions
+                            run_profile_actions(profile_data, processed_output)
+                            
+                        time.sleep(1)
+                        log.done("All done! Ready for the next recording 🫡")
+
+                except EOFError:
                     break
 
         except KeyboardInterrupt:
             log.warning("\nReceived keyboard interrupt, shutting down...")
             if recording_manager.is_recording:
                 recording_manager.stop_recording()
-            hotkey_manager.stop()
 
         log.info("\nShutting down...")
         if recording_manager.is_recording:
             recording_manager.stop_recording()
-        hotkey_manager.stop()
         log.success("Goodbye!")
 
     except Exception as e:
@@ -134,6 +120,9 @@ def cli_mode(ai_provider=None, debug=False, profile=None):
 def app_mode():
     """Run the application in GUI mode."""
     try:
+        # Check for required Whisper model
+        check_whisper_model()
+
         from src.ui.app import TranscriberApp
 
         app = TranscriberApp()
@@ -155,6 +144,9 @@ def main():
 Examples:
   # Run initial setup
   wb --setup
+
+  # Launch the GUI app
+  wb --app
 
   # Record and transcribe a meeting with Ollama
   wb --ai-provider ollama --profile meeting_summary
@@ -191,6 +183,11 @@ For more information, visit: https://github.com/ToolUse/whisperbox
             "--open",
             action="store_true",
             help="Open the WhisperBox data folder in Documents",
+        )
+        setup_group.add_argument(
+            "--app",
+            action="store_true",
+            help="Launch WhisperBox in GUI mode",
         )
 
         # Recording and Processing group
@@ -240,7 +237,18 @@ For more information, visit: https://github.com/ToolUse/whisperbox
             reveal_in_file_manager(get_app_dir())
             return
 
-        # Run in CLI mode if no special commands
+        # Launch GUI mode if --app flag is present
+        if args.app:
+            try:
+                from src.ui.app import TranscriberApp
+                app = TranscriberApp()
+                return app.main_loop()
+            except ImportError as e:
+                log.error("Could not load GUI mode. Make sure toga is installed.")
+                log.error(f"Error details: {e}")
+                return 1
+
+        # Run in CLI mode if no special commands and no --app flag
         cli_mode(
             ai_provider=args.ai_provider,
             debug=args.debug,

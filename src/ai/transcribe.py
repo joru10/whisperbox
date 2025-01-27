@@ -19,7 +19,7 @@ from urllib.request import urlretrieve
 from ..core.config import config
 from ..audio.audio import AudioRecorder, convert_to_wav
 from ..utils.logger import log
-from ..utils.utils import get_models_dir
+from ..utils.utils import get_models_dir, get_app_dir
 
 console = Console()
 
@@ -199,9 +199,8 @@ def get_sentiment_color(sentiment):
 
 
 class Shallowgram:
-    def __init__(self, whisperfile_path=None, vault_path=None):
+    def __init__(self, whisperfile_path=None):
         self.whisperfile_path = whisperfile_path or get_models_dir()
-        self.vault_path = vault_path or os.path.expanduser("~/Documents/ObsidianVault")
         self.ai_service = AIService()
 
     def transcribe(self, audio_file, model=DEFAULT_WHISPER_MODEL, full_analysis=False):
