@@ -1,6 +1,7 @@
 # src/utils/profile_executor.py
 import os
 import importlib.util
+from ..utils.utils import get_app_dir
 
 
 def run_profile_actions(profile_data, processed_text):
@@ -16,10 +17,11 @@ def run_profile_actions(profile_data, processed_text):
 
 def run_action_script(script_name: str, artifact: str, action_config: dict):
     """
-    Dynamically import a script from 'scripts/<script_name>.py'.
+    Dynamically import a script from the app's scripts directory.
     Expects the script to define 'run_action(artifact, action_config)'.
     """
-    script_path = os.path.join("scripts", f"{script_name}.py")
+    scripts_dir = get_app_dir() / "scripts"
+    script_path = os.path.join(scripts_dir, f"{script_name}.py")
     if not os.path.isfile(script_path):
         raise FileNotFoundError(f"Action script not found: {script_path}")
 

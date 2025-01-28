@@ -11,15 +11,18 @@ import traceback
 
 console = Console()
 
-
 class RecordingManager:
     def __init__(self):
+        """Initialize the recording manager."""
+        from ..core.config import config
+        log.debug("RecordingManager initialized with config:")
+        log.debug(str(config._config))
+        self.recorder = AudioRecorder()
+        self.transcriber = Shallowgram()
         self.is_recording = False
         self.is_paused = False
         self.current_recording = None
         self.current_session_dir = None
-        self.recorder = AudioRecorder()
-        self.transcriber = Shallowgram()
 
     def _get_output_filename(self):
         """Generate output filename based on timestamp."""
@@ -35,9 +38,7 @@ class RecordingManager:
 
             # Create a new session directory if we don't have one
             if not self.current_session_dir:
-                self.current_session_dir = create_session_dir(
-                    config.output.session_type
-                )
+                self.current_session_dir = create_session_dir()
 
             # Convert to string and join paths safely
             session_dir = str(self.current_session_dir)
@@ -48,9 +49,7 @@ class RecordingManager:
             # Fallback to basic timestamp format
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
             if not self.current_session_dir:
-                self.current_session_dir = create_session_dir(
-                    config.output.session_type
-                )
+                self.current_session_dir = create_session_dir()
             session_dir = str(self.current_session_dir)
             return os.path.join(session_dir, "recording.wav")
 
@@ -95,9 +94,27 @@ class RecordingManager:
             # Transcribe the recording
             log.transcribing("Starting transcription...")
             try:
-                log.debug(f"Using Whisper model: {config.transcription.whisper.model}")
+                # Get model name with robust fallback
+                model_name = config.get_with_retry("transcription", "whisper", "model")
+                if not model_name:
+                    from ..core.config import DEFAULT_CONFIG
+                    default_model = DEFAULT_CONFIG["transcription"]["whisper"]["model"]
+                    log.warning(f"Could not get model from config after retries, using default: {default_model}")
+                    model_name = default_model
+                    # Update config with default model
+                    if "transcription" not in config._config:
+                        config._config["transcription"] = {}
+                    if "whisper" not in config._config["transcription"]:
+                        config._config["transcription"]["whisper"] = {}
+                    config._config["transcription"]["whisper"]["model"] = model_name
+                    config.save()
+                    log.debug(f"Updated config with default model: {model_name}")
+                
+                log.debug(f"Using Whisper model: {model_name}")
                 result = self.transcriber.transcribe(
-                    self.current_recording, full_analysis=True
+                    self.current_recording,
+                    model=model_name,
+                    full_analysis=True
                 )
 
                 if not result:
@@ -105,9 +122,6 @@ class RecordingManager:
                     return
 
                 log.debug("Saving results to markdown...")
-
-                # Save raw whisper transcript
-                export_to_markdown(result["text"], str(self.current_session_dir))
 
                 # Save processed results to markdown
                 self._save_results_to_markdown(result)
@@ -125,7 +139,7 @@ class RecordingManager:
             log.debug(traceback.format_exc())
 
     def _save_results_to_markdown(self, result):
-        """Save transcription results to a markdown file in the session directory."""
+        """Save transcription results to markdown files in the session directory."""
         if not self.current_session_dir:
             log.error("No session directory available")
             return
@@ -133,16 +147,27 @@ class RecordingManager:
         try:
             # Convert to string first to handle Path objects safely
             session_dir = str(self.current_session_dir)
-            markdown_path = os.path.join(session_dir, "transcript.md")
-
-            with open(markdown_path, "w") as f:
-                f.write(f"# {config.output.session_type.title()} Transcript\n\n")
-                f.write("## Transcript\n\n")
+            
+            # Save main transcript with timestamps
+            transcript_path = os.path.join(session_dir, "transcript.md")
+            with open(transcript_path, "w") as f:
+                f.write(f"# Transcript\n\n")
                 f.write(result["text"])
-
-            log.save(f"Results saved to: {markdown_path}")
+            log.save(f"Transcript saved to: {transcript_path}")
+            
+            # Save clean text version without timestamps
+            text_path = os.path.join(session_dir, "transcript_text.md")
+            with open(text_path, "w") as f:
+                # Remove timestamps using a simple regex
+                import re
+                clean_text = re.sub(r'\[\d{2}:\d{2}:\d{2}\.\d{3} --> \d{2}:\d{2}:\d{2}\.\d{3}\]', '', result["text"])
+                # Remove extra whitespace and empty lines
+                clean_text = "\n".join(line.strip() for line in clean_text.split("\n") if line.strip())
+                f.write(clean_text)
+            log.save(f"Clean text saved to: {text_path}")
+            
         except Exception as e:
-            log.error(f"Error saving markdown file: {e}")
+            log.error(f"Error saving markdown files: {e}")
             log.debug(traceback.format_exc())
 
     def toggle_pause(self):

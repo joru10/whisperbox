@@ -111,16 +111,10 @@ class Logger:
     def print_header(self):
         """Print the app header."""
         self.clear()
-        self.console.print("\n[bold blue]🎙️  Hacker Transcriber[/bold blue]")
+        self.console.print("\n[bold blue]🎙️  WhisperBox[/bold blue]")
         
     def print_instructions(self):
         """Print usage instructions."""
-        # Print hotkeys
-        self.console.print("\n[cyan]Hotkeys:[/cyan]")
-        for action, hotkey in config.hotkeys.items():
-            desc = action.replace('_', ' ').title()
-            key_str = hotkey.replace('+', ' + ')
-            self.console.print(f"  [cyan]{key_str:<20}[/cyan] {desc}")
 
         # Print commands
         self.console.print("\n[cyan]Commands:[/cyan]")
@@ -162,18 +156,6 @@ class Logger:
             if isinstance(details, dict) and 'description' in details:
                 cmd_table.add_row(cmd, details['description'])
         self.console.print(cmd_table)
-        
-        # Hotkeys section with table
-        self.console.print("\n[bold cyan]Hotkeys:[/bold cyan]")
-        hotkey_table = Table(show_header=False, padding=(0, 2))
-        hotkey_table.add_column(style="cyan", justify="left")
-        hotkey_table.add_column(style="white", justify="left")
-        
-        for action, details in config.hotkeys.items():
-            if isinstance(details, dict) and 'key' in details and 'description' in details:
-                key_str = details['key'].replace('+', ' + ')
-                hotkey_table.add_row(key_str, details['description'])
-        self.console.print(hotkey_table)
         
         # Features and tips remain the same
         self.console.print("\n[bold cyan]Recording Features:[/bold cyan]")

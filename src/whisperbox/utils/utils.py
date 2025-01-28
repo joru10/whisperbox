@@ -21,14 +21,9 @@ def get_config_path() -> Path:
     return get_app_dir() / "config.yaml"
 
 
-def get_meetings_dir() -> Path:
+def get_data_dir() -> Path:
     """Get the meetings directory path."""
-    return get_app_dir() / "meetings"
-
-
-def get_monologues_dir() -> Path:
-    """Get the monologues directory path."""
-    return get_app_dir() / "monologues"
+    return get_app_dir() / "data"
 
 
 def get_models_dir() -> Path:
@@ -41,18 +36,14 @@ def get_profiles_dir() -> Path:
     return get_app_dir() / "profiles"
 
 
-def create_session_dir(session_type: str) -> Path:
-    """Create a new directory for a meeting or monologue session.
-
-    Args:
-        session_type (str): Either 'meeting' or 'monologue'
+def create_session_dir() -> Path:
+    """Create a new directory for a meeting session.
 
     Returns:
         Path: Path to the created session directory
     """
     timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-    base_dir = get_meetings_dir() if session_type == "meeting" else get_monologues_dir()
-    session_dir = base_dir / timestamp
+    session_dir = get_data_dir() / timestamp
     session_dir.mkdir(parents=True, exist_ok=True)
     return session_dir
 
@@ -69,8 +60,7 @@ def create_app_directory_structure() -> None:
     app_dir.mkdir(exist_ok=True, parents=True)
 
     # Create main subdirectories
-    get_meetings_dir().mkdir(exist_ok=True)
-    get_monologues_dir().mkdir(exist_ok=True)
+    get_data_dir().mkdir(exist_ok=True)
     get_models_dir().mkdir(exist_ok=True)
     get_profiles_dir().mkdir(exist_ok=True)
 

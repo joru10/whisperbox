@@ -82,7 +82,7 @@ Then select the AI provider you want to use. Ollama runs locally and does not re
 
 Then select the model you want to use.
 
-Then you will have the option to view the config file location so you can customize additional settings. This directory also contains the whisper models you downloaded, the meeting, and the monologues.
+Then you will have the option to view the config file location so you can customize additional settings. This directory also contains the whisper models you downloaded and the data directory that contains all your recordings and transcriptions.
 
 ### Basic Transcription
 

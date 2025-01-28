@@ -1,29 +1,16 @@
 import os
-import yaml
+import tempfile
 from typing import Dict, Any, Optional
 from ..utils.utils import (
     get_config_path,
-    get_meetings_dir,
-    get_monologues_dir,
     get_models_dir,
     save_config,
     load_config,
-    get_app_dir,
-    get_profiles_dir,
+    get_data_dir,
 )
 
 DEFAULT_CONFIG = {
-    "commands": {
-        "help": {"description": "Show help menu", "action": "help"},
-        "config": {"description": "Configure application settings", "action": "config"},
-        "devices": {"description": "List available audio devices", "action": "devices"},
-    },
     "ai": {"default_provider": "ollama", "default_model": "llama3.2"},
-    "hotkeys": {
-        "start_recording": "ctrl+r",
-        "stop_recording": "ctrl+s",
-        "pause_recording": "ctrl+shift+p",
-    },
     "audio": {
         "format": "wav",
         "channels": 2,
@@ -38,14 +25,18 @@ DEFAULT_CONFIG = {
                 "sample_rate": None,
                 "input_latency": None,
                 "is_default": None
+            },
+            "system": {
+                "name": None,
+                "index": None,
+                "channels": None,
+                "sample_rate": None
             }
         }
     },
     "output": {
-        "session_type": "meeting",  # or 'monologue'
-        "meetings_directory": str(get_meetings_dir()),
-        "monologues_directory": str(get_monologues_dir()),
-        "profiles_directory": str(get_profiles_dir()),
+        "default_profile": "meeting_summary",
+        "data_directory": str(get_data_dir()),
         "timestamp_format": "%Y-%m-%d_%H-%M-%S",
         "save_audio": True,
         "file_format": "md",
@@ -57,7 +48,10 @@ DEFAULT_CONFIG = {
             "gpu_enabled": True,
         }
     },
-    "system": {"temp_directory": "/tmp/whisperbox", "debug_mode": False},
+    "system": {
+        "temp_directory": os.path.join(tempfile.gettempdir(), "whisperbox"),
+        "debug_mode": False
+    },
 }
 
 
@@ -65,19 +59,52 @@ class Config:
     def __init__(self):
         """Initialize configuration from YAML file."""
         self._config_path = get_config_path()
-        self._config: Dict[str, Any] = {}
-        self._config.update(DEFAULT_CONFIG)  # Start with defaults
-        self.load_config()
+        self._config = self._load_config()
 
-    def load_config(self) -> None:
-        """Load configuration from YAML file."""
-        file_config = load_config()
-        self._config.update(file_config)
+    def _load_config(self):
+        """Load configuration from file or create default."""
+        if os.path.exists(self._config_path):
+            return load_config()
+        return DEFAULT_CONFIG.copy()
 
-        # Create directories if they don't exist
-        os.makedirs(self.output.meetings_directory, exist_ok=True)
-        os.makedirs(self.output.monologues_directory, exist_ok=True)
-        os.makedirs(self.system.temp_directory, exist_ok=True)
+    def reload(self):
+        """Reload configuration from file."""
+        self._config = self._load_config()
+
+    def get_with_retry(self, *keys, max_attempts=3):
+        """Get a config value with retries if None is found.
+        
+        Args:
+            *keys: The keys to traverse in the config dict
+            max_attempts: Maximum number of reload attempts
+        """
+        value = self._config
+        for key in keys:
+            if not isinstance(value, dict):
+                return None
+            value = value.get(key)
+            if value is None:
+                # If we hit a None, try reloading
+                for _ in range(max_attempts):
+                    self.reload()
+                    # Try getting the value again
+                    temp_value = self._config
+                    for k in keys:
+                        if not isinstance(temp_value, dict):
+                            break
+                        temp_value = temp_value.get(k)
+                        if temp_value is None:
+                            break
+                    if temp_value is not None:
+                        return temp_value
+                # If we still got None after all attempts, use default
+                temp_value = DEFAULT_CONFIG
+                for k in keys:
+                    if not isinstance(temp_value, dict):
+                        return None
+                    temp_value = temp_value.get(k)
+                return temp_value
+        return value
 
     def save(self) -> None:
         """Save current configuration to file."""
@@ -147,9 +174,9 @@ class Config:
         return ConfigSection(self._config.get("commands", {}))
 
     @property
-    def hotkeys(self):
-        """Access hotkey settings."""
-        return ConfigSection(self._config.get("hotkeys", {}))
+    def config(self):
+        """Get the raw config dictionary."""
+        return self._config
 
 
 class ConfigSection:
