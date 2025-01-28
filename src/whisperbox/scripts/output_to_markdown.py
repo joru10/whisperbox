@@ -1,7 +1,7 @@
 # scripts/output_to_markdown.py
 
 import os
-from src.utils.utils import get_app_dir
+from whisperbox.utils.utils import get_app_dir
 
 
 def run_action(artifact, action_config):
@@ -10,15 +10,15 @@ def run_action(artifact, action_config):
     # Get session directory from config, if not provided use the most recent session directory
     if "session_dir" not in action_config:
         # Find most recent session directory
-        meetings_dir = os.path.join(get_app_dir(), "meetings")
+        data_dir = os.path.join(get_app_dir(), "data")
         sessions = [
             d
-            for d in os.listdir(meetings_dir)
-            if os.path.isdir(os.path.join(meetings_dir, d))
+            for d in os.listdir(data_dir)
+            if os.path.isdir(os.path.join(data_dir, d))
         ]
         if sessions:
             latest_session = max(sessions)  # Gets the most recent timestamp directory
-            session_dir = os.path.join(meetings_dir, latest_session)
+            session_dir = os.path.join(data_dir, latest_session)
         else:
             session_dir = str(get_app_dir())
     else:

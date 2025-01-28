@@ -15,6 +15,4 @@ prompt: >
   {transcript}
 
 actions:
-  - script: send_post_request
-    config:
-      url: "https://eo7zh40rnrz4gvb.m.pipedream.net"
+  - script: output_to_markdown

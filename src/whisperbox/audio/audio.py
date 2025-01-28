@@ -11,9 +11,10 @@ from ..core.config import config
 from rich.prompt import Prompt
 from rich.console import Console
 import yaml
-from InquirerPy import inquirer
+from InquirerPy.prompts.list import ListPrompt
 import traceback
 import sounddevice as sd
+import time
 
 
 class AudioRecorder:
@@ -215,43 +216,63 @@ class AudioRecorder:
             return
 
         log.debug("=== Audio Recorder Stop Sequence ===")
-        log.debug("Stopping recording thread...")
-
-        # First stop the streams to prevent any more data from being read
-        log.debug("Stopping audio streams...")
-        if hasattr(self, "mic_stream") and self.mic_stream:
-            log.debug("Stopping microphone stream...")
-            self.mic_stream.stop_stream()
-            log.debug("Microphone stream stopped")
-        if hasattr(self, "system_stream") and self.system_stream:
-            log.debug("Stopping system stream...")
-            self.system_stream.stop_stream()
-            log.debug("System stream stopped")
-
-        # Now set the stop event
+        
+        # First set the stop event to prevent any new data from being read
         log.debug("Setting stop event...")
         self._stop_event.set()
+        
+        # Give a short pause to let the recording thread notice the stop event
+        time.sleep(0.1)
+        
+        # Now stop the streams
+        log.debug("Stopping audio streams...")
+        try:
+            if hasattr(self, "mic_stream") and self.mic_stream:
+                log.debug("Stopping microphone stream...")
+                self.mic_stream.stop_stream()
+                log.debug("Microphone stream stopped")
+        except Exception as e:
+            log.warning(f"Error stopping mic stream: {e}")
+            
+        try:
+            if hasattr(self, "system_stream") and self.system_stream:
+                log.debug("Stopping system stream...")
+                self.system_stream.stop_stream()
+                log.debug("System stream stopped")
+        except Exception as e:
+            log.warning(f"Error stopping system stream: {e}")
 
         # Now join the thread with a shorter timeout
         if hasattr(self, "record_thread"):
             log.debug("Waiting for recording thread to finish...")
-            self.record_thread.join(timeout=3)
-            if self.record_thread.is_alive():
-                log.warning(
-                    "Recording thread still alive after timeout, proceeding anyway"
-                )
-            else:
-                log.debug("Recording thread joined successfully")
+            try:
+                self.record_thread.join(timeout=1)
+                if self.record_thread.is_alive():
+                    log.warning("Recording thread still alive after timeout")
+                else:
+                    log.debug("Recording thread joined successfully")
+            except Exception as e:
+                log.warning(f"Error joining record thread: {e}")
 
+        # Close the streams
         log.debug("Closing audio streams...")
-        if hasattr(self, "mic_stream") and self.mic_stream:
-            log.debug("Closing microphone stream...")
-            self.mic_stream.close()
-            log.debug("Microphone stream closed")
-        if hasattr(self, "system_stream") and self.system_stream:
-            log.debug("Closing system stream...")
-            self.system_stream.close()
-            log.debug("System stream closed")
+        try:
+            if hasattr(self, "mic_stream") and self.mic_stream:
+                log.debug("Closing microphone stream...")
+                self.mic_stream.close()
+                self.mic_stream = None
+                log.debug("Microphone stream closed")
+        except Exception as e:
+            log.warning(f"Error closing mic stream: {e}")
+            
+        try:
+            if hasattr(self, "system_stream") and self.system_stream:
+                log.debug("Closing system stream...")
+                self.system_stream.close()
+                self.system_stream = None
+                log.debug("System stream closed")
+        except Exception as e:
+            log.warning(f"Error closing system stream: {e}")
 
         self.is_recording = False
         log.debug("=== Audio Recorder Stop Complete ===")
@@ -259,35 +280,65 @@ class AudioRecorder:
 
     def save(self, output_file):
         """Save recorded audio to file and convert to 16kHz mono WAV."""
+        if not self.frames:
+            log.error("No frames to save")
+            return
+            
         log.debug(f"Saving {len(self.frames)} frames to {output_file}")
-
-        # Save initial WAV file
+        
+        # Create temp file path
         temp_file = output_file + ".temp.wav"
-        wf = wave.open(temp_file, "wb")
-        wf.setnchannels(self.mic_channels)
-        wf.setsampwidth(self.p.get_sample_size(pyaudio.paInt16))
-        wf.setframerate(config.audio.sample_rate)
-        wf.writeframes(b"".join(self.frames))
-        wf.close()
-
-        # Convert to 16kHz mono WAV
+        
         try:
-            audio = AudioSegment.from_wav(temp_file)
-            audio = audio.set_frame_rate(16000).set_channels(1).set_sample_width(2)
-            audio.export(output_file, format="wav")
-            os.remove(temp_file)  # Clean up temporary file
+            # Save initial WAV file
+            with wave.open(temp_file, "wb") as wf:
+                wf.setnchannels(self.mic_channels)
+                wf.setsampwidth(self.p.get_sample_size(pyaudio.paInt16))
+                wf.setframerate(config.audio.sample_rate)
+                wf.writeframes(b"".join(self.frames))
+            
+            # Convert to 16kHz mono WAV using a context manager
+            audio = None
+            try:
+                audio = AudioSegment.from_wav(temp_file)
+                audio = audio.set_frame_rate(16000).set_channels(1).set_sample_width(2)
+                audio.export(output_file, format="wav")
+            finally:
+                # Explicitly delete AudioSegment object
+                del audio
+                
+            # Clean up temp file
+            if os.path.exists(temp_file):
+                os.remove(temp_file)
+                
             log.debug(f"Successfully converted audio to 16kHz mono WAV: {output_file}")
+            
         except Exception as e:
-            log.error(f"Error converting audio format: {e}")
-            # If conversion fails, keep the original file
-            os.rename(temp_file, output_file)
-            log.warning("Keeping original audio format")
-
-        self.frames = []
-
+            log.error(f"Error saving audio: {e}")
+            # If conversion fails, try to keep the original file
+            if os.path.exists(temp_file):
+                try:
+                    os.rename(temp_file, output_file)
+                    log.warning("Keeping original audio format")
+                except Exception as rename_error:
+                    log.error(f"Error saving original audio: {rename_error}")
+        finally:
+            # Clean up frames and ensure temp file is removed
+            self.frames = []
+            if os.path.exists(temp_file):
+                try:
+                    os.remove(temp_file)
+                except Exception as cleanup_error:
+                    log.error(f"Error cleaning up temp file: {cleanup_error}")
+                    
     def __del__(self):
         """Cleanup PyAudio."""
-        self.p.terminate()
+        try:
+            if hasattr(self, 'p'):
+                self.p.terminate()
+        except Exception as e:
+            # Silently fail on cleanup
+            pass
 
 
 def convert_to_wav(input_file, output_file):
@@ -303,15 +354,23 @@ def get_input_devices():
         input_devices = []
         
         for i, device in enumerate(devices):
-            if device['max_input_channels'] > 0:  # Only input devices
-                input_devices.append({
-                    'name': device['name'],
-                    'index': i,
-                    'channels': device['max_input_channels'],
-                    'sample_rate': device['default_samplerate'],
-                    'input_latency': device['default_low_input_latency'] * 1000,  # Convert to ms
-                    'is_default': i == sd.default.device[0]
-                })
+            try:
+                # Convert device info to a dictionary
+                device_info = dict(device)
+                max_inputs = int(device_info['max_input_channels'])
+                
+                if max_inputs > 0:
+                    input_devices.append({
+                        'name': str(device_info['name']),
+                        'index': i,
+                        'channels': max_inputs,
+                        'sample_rate': float(device_info['default_samplerate']),
+                        'input_latency': float(device_info['default_low_input_latency']) * 1000,  # Convert to ms
+                        'is_default': i == sd.default.device[0]
+                    })
+            except (KeyError, ValueError, TypeError) as e:
+                log.debug(f"Skipping device {i} due to error: {e}")
+                continue
         
         return input_devices
     except Exception as e:
@@ -339,11 +398,8 @@ def select_audio_device():
         choices.append(choice_str)
 
     # Show device selection prompt
-    selection = inquirer.select(
-        message="Select input device:",
-        choices=choices,
-        default=next((i for i, d in enumerate(choices) if "(Default)" in d), 0),
-    ).execute()
+    prompt = ListPrompt(message="Select input device:", choices=choices)
+    selection = prompt.execute()
 
     # Get the selected device (extract name before the newline)
     selected_name = selection.split("\n")[0].replace(" (Default)", "")
@@ -357,25 +413,26 @@ def select_audio_device():
             config._config["audio"]["devices"] = {}
 
         # Update the microphone configuration with all available details
+        # Convert float values to integers where needed
         config._config["audio"]["devices"]["microphone"] = {
             "name": selected_device["name"],
-            "index": selected_device["index"],
-            "channels": selected_device["channels"],
-            "sample_rate": selected_device["sample_rate"],
-            "input_latency": selected_device["input_latency"],
+            "index": int(selected_device["index"]),  # Convert to int
+            "channels": int(selected_device["channels"]),  # Convert to int
+            "sample_rate": int(selected_device["sample_rate"]),  # Convert to int
+            "input_latency": selected_device["input_latency"],  # Keep as float
             "is_default": selected_device["is_default"],
         }
 
         # Update the main audio settings to match the device's native capabilities
-        config._config["audio"]["channels"] = selected_device["channels"]
-        config._config["audio"]["sample_rate"] = selected_device["sample_rate"]
+        config._config["audio"]["channels"] = int(selected_device["channels"])  # Convert to int
+        config._config["audio"]["sample_rate"] = int(selected_device["sample_rate"])  # Convert to int
 
         config.save()
 
         log.success(
             f"Updated config: Using {selected_device['name']}\n"
-            f"Native settings - Channels: {selected_device['channels']}, "
-            f"Sample Rate: {selected_device['sample_rate']}Hz"
+            f"Native settings - Channels: {int(selected_device['channels'])}, "  # Convert to int
+            f"Sample Rate: {int(selected_device['sample_rate'])}Hz"  # Convert to int
         )
         print("")
 

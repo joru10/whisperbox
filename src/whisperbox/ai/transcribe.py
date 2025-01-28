@@ -16,19 +16,20 @@ import select
 import sys
 from .ai_service import AIService
 from urllib.request import urlretrieve
-from ..core.config import config
+from ..core.config import config, DEFAULT_CONFIG
 from ..audio.audio import AudioRecorder, convert_to_wav
 from ..utils.logger import log
 from ..utils.utils import get_models_dir, get_app_dir
 
 console = Console()
 
+# Get model name from config, with fallback to tiny.en
 OLLAMA_MODEL = config.ai.default_model
-DEFAULT_WHISPER_MODEL = config.transcription.whisper.model
+DEFAULT_WHISPER_MODEL = config.get_with_retry("transcription", "whisper", "model")
 WHISPER_BASE_URL = config.transcription.whisper.base_url
 
 ASCII_ART = """
-Hacker Transcriber
+WhisperBox
 """
 
 
@@ -52,18 +53,41 @@ def install_whisper_model(model_name, whisperfile_path):
     os.makedirs(whisperfile_path, exist_ok=True)
 
     log.info(f"Downloading {full_model_name}...")
+    log.debug(f"Download URL: {url}")
+
     # Create a progress bar
     progress = console.status("[bold green]Downloading...", spinner="dots")
     progress.start()
 
-    def show_progress(block_num, block_size, total_size):
-        if total_size > 0:
-            downloaded = block_num * block_size
-            percent = min((downloaded / total_size) * 100, 100)
-            progress.update(f"[bold green]Downloading... {percent:.1f}%")
-
     try:
-        urlretrieve(url, output_path, show_progress)
+        # Special handling for macOS SSL certificates
+        import platform
+        if platform.system() == 'Darwin':
+            import ssl
+            import certifi
+            ssl_context = ssl.create_default_context(cafile=certifi.where())
+            # Try to find the macOS certificates as well
+            try:
+                import subprocess
+                cert_file = subprocess.check_output(['python3', '-m', 'certifi']).decode('utf-8').strip()
+                os.environ['SSL_CERT_FILE'] = cert_file
+                os.environ['REQUESTS_CA_BUNDLE'] = cert_file
+            except Exception as e:
+                log.debug(f"Could not set macOS certificates: {e}")
+        else:
+            ssl_context = ssl.create_default_context()
+
+        # Use urllib.request with the SSL context
+        from urllib.request import urlopen
+        with urlopen(url, context=ssl_context) as response:
+            # Read the content in chunks and write to file
+            with open(output_path, 'wb') as f:
+                while True:
+                    chunk = response.read(8192)
+                    if not chunk:
+                        break
+                    f.write(chunk)
+        
         progress.stop()
         os.chmod(output_path, 0o755)
         log.success(f"{full_model_name} installed successfully.")
@@ -104,6 +128,17 @@ def get_whisper_model_path(model_name, whisperfile_path, verbose):
 
 def transcribe_audio(model_name, whisperfile_path, audio_file, verbose):
     try:
+        if not model_name:
+            model_name = config.get_with_retry("transcription", "whisper", "model")
+            log.debug(f"Using default model: {model_name}")
+            
+        if not model_name:
+            from ..core.config import DEFAULT_CONFIG
+            default_model = DEFAULT_CONFIG["transcription"]["whisper"]["model"]
+            log.warning(f"Could not get model from config after retries, using default: {default_model}")
+            model_name = default_model
+            
+        log.debug(f"Final model name for transcription: {model_name}")
         model_path = get_whisper_model_path(model_name, whisperfile_path, verbose)
         gpu_flag = "--gpu auto" if config.transcription.whisper.gpu_enabled else ""
         command = f"{model_path} -f {audio_file} {gpu_flag}"
@@ -207,6 +242,21 @@ class Shallowgram:
         log.debug(f"using file {audio_file}")
         if not os.path.exists(audio_file):
             raise FileNotFoundError(f"Audio file not found: {audio_file}")
+
+        # Ensure we have a valid model
+        if not model:
+            from ..core.config import DEFAULT_CONFIG
+            default_model = DEFAULT_CONFIG["transcription"]["whisper"]["model"]
+            log.warning(f"No model specified, using default: {default_model}")
+            model = default_model
+            # Update config with default model
+            if "transcription" not in config._config:
+                config._config["transcription"] = {}
+            if "whisper" not in config._config["transcription"]:
+                config._config["transcription"]["whisper"] = {}
+            config._config["transcription"]["whisper"]["model"] = model
+            config.save()
+            log.debug(f"Updated config with default model: {model}")
 
         # Convert to wav if needed
         file_ext = os.path.splitext(audio_file)[1].lower()

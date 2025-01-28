@@ -21,11 +21,10 @@ import shutil
 from ..audio.audio import select_audio_device
 
 WHISPER_MODELS = {
-    "tiny.en": {"description": "Fastest, least accurate, ~1GB RAM"},
-    "base.en": {"description": "Fast, decent accuracy, ~1GB RAM"},
-    "small.en": {"description": "Balanced speed/accuracy, ~2GB RAM"},
-    "medium.en": {"description": "More accurate, slower, ~5GB RAM"},
-    "large": {"description": "Most accurate, slowest, ~10GB RAM"},
+    "tiny.en": {"description": "Fastest, least accurate, ~87 MB"},
+    "small.en": {"description": "Balanced speed/accuracy, ~497 MB"},
+    "medium.en": {"description": "More accurate, slower, ~1.83 GB"},
+    "large": {"description": "Most accurate, slowest, ~3.39 GB"},
 }
 
 AI_PROVIDERS = {
@@ -35,11 +34,11 @@ AI_PROVIDERS = {
     },
     "openai": {
         "description": "OpenAI's GPT models (requires API key)",
-        "default_model": "gpt-4-0125-preview",
+        "default_model": "gpto",
     },
     "anthropic": {
         "description": "Anthropic's Claude models (requires API key)",
-        "default_model": "claude-3-sonnet-20240229",
+        "default_model": "claude-3-5-sonnet-20240620",
     },
     "groq": {
         "description": "Groq's fast inference API (requires API key)",
@@ -56,22 +55,14 @@ def check_ollama() -> bool:
     except (subprocess.CalledProcessError, FileNotFoundError):
         return False
 
-
-def setup_config() -> Dict[str, Any]:
-    """Interactive configuration setup."""
-    log.header("Welcome to WhisperBox!")
-    time.sleep(1)
-    log.info("Let's get you set up.")
-    time.sleep(0.5)
-
-    # Create application directory structure
+def make_dirs():
     create_app_directory_structure()
     log.success(f"Created WhisperBox directory at: {get_app_dir()}")
     log.info("Your recordings and transcripts will be saved here.")
-
     # Copy default profiles
     try:
-        src_profiles_dir = Path(__file__).parent.parent.parent / "profiles"
+        # Look for profiles in the whisperbox package directory
+        src_profiles_dir = Path(__file__).parent.parent / "profiles"
         dest_profiles_dir = get_app_dir() / "profiles"
         dest_profiles_dir.mkdir(exist_ok=True)  # Ensure profiles directory exists
 
@@ -84,6 +75,34 @@ def setup_config() -> Dict[str, Any]:
     except Exception as e:
         log.warning(f"Failed to copy default profiles: {e}")
         log.warning("You can manually copy profile templates later if needed.")
+
+    # Copy action scripts
+    try:
+        # Look for scripts in the whisperbox package directory
+        src_scripts_dir = Path(__file__).parent.parent / "scripts"
+        dest_scripts_dir = get_app_dir() / "scripts"
+        dest_scripts_dir.mkdir(exist_ok=True)  # Ensure scripts directory exists
+
+        if src_scripts_dir.exists():
+            for script_file in src_scripts_dir.glob("*.py"):
+                shutil.copy2(script_file, dest_scripts_dir / script_file.name)
+            log.success("Copied action scripts to your scripts directory")
+        else:
+            log.warning(f"Default scripts directory not found at: {src_scripts_dir}")
+    except Exception as e:
+        log.warning(f"Failed to copy action scripts: {e}")
+        log.warning("You can manually copy script templates later if needed.")
+
+
+def setup_config() -> Dict[str, Any]:
+    """Interactive configuration setup."""
+    log.header("Welcome to WhisperBox!")
+    time.sleep(1)
+    log.info("Let's get you set up.")
+    time.sleep(0.5)
+
+    # Create application directory structure
+    make_dirs()
 
     # Start with default config
     config = DEFAULT_CONFIG.copy()

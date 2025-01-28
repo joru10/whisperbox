@@ -3,23 +3,22 @@ import time
 import logging
 import argparse
 from threading import Thread
-from src.whisperbox.core.config import config
-from src.whisperbox.audio.recording_manager import RecordingManager
-from src.whisperbox.utils.logger import log
-from src.whisperbox.core.setup import setup
-from src.whisperbox.audio.audio import list_audio_devices
-from src.whisperbox.utils.utils import (
+from .core.config import config
+from .audio.recording_manager import RecordingManager
+from .utils.logger import log
+from .core.setup import setup
+from .audio.audio import list_audio_devices
+from .utils.utils import (
     is_first_run,
-    create_app_directory_structure,
     get_transcript_path,
     get_app_dir,
     reveal_in_file_manager,
 )
-from src.whisperbox.utils.model_utils import check_whisper_model
-from src.whisperbox.ai.process_transcript import process_transcript
-from src.whisperbox.ai.ai_service import AIService
-from src.whisperbox.utils.profile_parser import load_profile_yaml, get_available_profiles
-from src.whisperbox.utils.profile_executor import run_profile_actions
+from .utils.model_utils import check_whisper_model
+from .ai.process_transcript import process_transcript
+from .ai.ai_service import AIService
+from .utils.profile_parser import load_profile_yaml, get_available_profiles
+from .utils.profile_executor import run_profile_actions
 import traceback
 from pathlib import Path
 
@@ -153,11 +152,6 @@ For more information, visit: https://github.com/ToolUse/whisperbox
             help="Run the initial setup process (configure AI, audio devices, etc.)",
         )
         setup_group.add_argument(
-            "--config",
-            action="store_true",
-            help="Open the configuration file in your default editor",
-        )
-        setup_group.add_argument(
             "--devices",
             action="store_true",
             help="List and select audio input devices (microphone and system audio)",
@@ -202,10 +196,6 @@ For more information, visit: https://github.com/ToolUse/whisperbox
         # Handle special commands first
         if args.setup or is_first_run():
             setup()
-            return
-
-        if args.config:
-            os.system(f"open {config._config_path}")
             return
 
         if args.devices:
