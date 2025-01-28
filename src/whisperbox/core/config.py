@@ -1,4 +1,5 @@
 import os
+import tempfile
 from typing import Dict, Any, Optional
 from ..utils.utils import (
     get_config_path,
@@ -24,6 +25,12 @@ DEFAULT_CONFIG = {
                 "sample_rate": None,
                 "input_latency": None,
                 "is_default": None
+            },
+            "system": {
+                "name": None,
+                "index": None,
+                "channels": None,
+                "sample_rate": None
             }
         }
     },
@@ -41,7 +48,10 @@ DEFAULT_CONFIG = {
             "gpu_enabled": True,
         }
     },
-    "system": {"temp_directory": "/tmp/whisperbox", "debug_mode": False},
+    "system": {
+        "temp_directory": os.path.join(tempfile.gettempdir(), "whisperbox"),
+        "debug_mode": False
+    },
 }
 
 

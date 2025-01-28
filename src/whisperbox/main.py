@@ -21,6 +21,52 @@ from .utils.profile_parser import load_profile_yaml, get_available_profiles
 from .utils.profile_executor import run_profile_actions
 import traceback
 from pathlib import Path
+from InquirerPy import inquirer
+
+
+def select_profile():
+    """Interactive profile selection."""
+    try:
+        available_profiles = get_available_profiles()
+        if not available_profiles:
+            log.warning("No profiles found!")
+            return None, None
+
+        # Create profile choices with descriptions
+        choices = []
+        profile_dict = {}  # Create a dictionary from the profiles
+        
+        for profile in available_profiles:
+            try:
+                profile_data = load_profile_yaml(profile)
+                if profile_data:
+                    desc = profile_data.get('description', '')
+                    choice_str = f"{profile}"
+                    if desc:
+                        choice_str += f" - {desc}"
+                    choices.append(choice_str)
+                    profile_dict[profile] = profile_data
+            except Exception as e:
+                log.debug(f"Error loading profile {profile}: {e}")
+                continue
+
+        if not choices:
+            log.warning("No valid profiles found!")
+            return None, None
+
+        # Show profile selection prompt
+        selection = inquirer.select(
+            message="Select a profile:",
+            choices=choices,
+        ).execute()
+
+        # Extract profile ID from selection
+        selected_profile = selection.split(" - ")[0]
+        return selected_profile, profile_dict.get(selected_profile)
+
+    except Exception as e:
+        log.error(f"Error selecting profile: {e}")
+        return None, None
 
 
 def cli_mode(ai_provider=None, debug=False, profile=None):
@@ -36,12 +82,51 @@ def cli_mode(ai_provider=None, debug=False, profile=None):
 
         # Check for required Whisper model
         check_whisper_model()
-
+        
         # Print header and instructions
         log.print_header()
-        log.info("\nSimple Recording Controls:")
-        log.info("- Press Enter to start recording")
-        log.info("- Press Enter again to stop recording")
+        
+        # Handle profile selection
+        profile_data = {}
+        
+        if profile == "":  # Empty string means --profile was passed without a value
+            profile, profile_data = select_profile()
+            if not profile:
+                log.error("No profile selected")
+                return
+        # If no profile specified at all, try to use default from config
+        elif not profile and config.output.default_profile:
+            profile = config.output.default_profile
+            log.info(f"Using default profile: {profile}")
+            try:
+                profile_data = load_profile_yaml(profile) or {}
+            except Exception as e:
+                log.error(f"Error loading default profile: {e}")
+                if debug:
+                    log.debug(traceback.format_exc())
+                return
+        # If profile name specified, load it
+        elif profile:
+            try:
+                profile_data = load_profile_yaml(profile) or {}
+            except Exception as e:
+                log.error(f"Error loading profile: {e}")
+                if debug:
+                    log.debug(traceback.format_exc())
+                return
+        else:
+            log.error("No profile specified and no default profile configured")
+            return
+
+        # Display profile information if we have it
+        if profile and profile_data:
+            name = profile_data.get('name') or profile
+            log.info(f"\nProfile loaded: {name}")
+            if description := profile_data.get('description'):
+                log.info(f"Description: {description}")
+
+        log.info("\nControls:")
+        log.info("- Press Enter to start and stop recording")
         log.info("- Press Ctrl+C to quit\n")
 
         # Initialize recording manager
@@ -53,20 +138,6 @@ def cli_mode(ai_provider=None, debug=False, profile=None):
                 ai_service = AIService(service_type=ai_provider)
             except ValueError as e:
                 logger.error(f"Error initializing AI service: {e}")
-                return
-
-        # If the user passes in a profile name, load it
-        profile_data = {}
-        if profile:
-            try:
-                profile_data = load_profile_yaml(profile)
-                log.info(f"Using profile: {profile_data.get('name')}")
-            except ValueError as e:
-                return
-            except Exception as e:
-                log.error(f"Unexpected error loading profile: {str(e)}")
-                if debug:
-                    log.debug(traceback.format_exc())
                 return
 
         try:
@@ -129,6 +200,11 @@ Examples:
   # Run initial setup
   wb --setup
 
+  # Record and transcribe with profile selector
+  wb --profile
+
+  # Record and transcribe with specific profile
+  wb --profile meeting_summary
 
   # Record and transcribe a meeting with Ollama
   wb --ai-provider ollama --profile meeting_summary
@@ -138,7 +214,6 @@ Examples:
 
   # List and configure audio devices
   wb --devices
-
 
 For more information, visit: https://github.com/ToolUse/whisperbox
 """
@@ -172,9 +247,11 @@ For more information, visit: https://github.com/ToolUse/whisperbox
             help="AI provider to use for processing transcripts",
         )
         processing_group.add_argument(
-            "--profile",
+            "-p", "--profile",
             type=str,
-            help="Profile to use for processing (e.g. meeting_summary, meeting_to_blogpost)",
+            nargs='?',
+            const='',  # This makes the value empty string when flag is used without value
+            help="Profile to use for processing. Use without a value to select from available profiles.",
         )
 
         # Debug group

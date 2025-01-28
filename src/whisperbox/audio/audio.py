@@ -1,20 +1,240 @@
 import os
+import sys
+import time
 import wave
+import yaml
 import pyaudio
 import select
-import sys
+import platform
+import traceback
 import threading
 from array import array
+import sounddevice as sd
 from pydub import AudioSegment
 from ..utils.logger import log
-from ..core.config import config
 from rich.prompt import Prompt
 from rich.console import Console
-import yaml
+from ..core.config import config
 from InquirerPy.prompts.list import ListPrompt
-import traceback
-import sounddevice as sd
-import time
+
+
+def get_platform():
+    """Get the current operating system platform."""
+    system = platform.system().lower()
+    if system == "darwin":
+        return "mac"
+    elif system == "linux":
+        return "linux"
+    elif system == "windows":
+        return "windows"
+    return "unknown"
+
+
+def get_system_audio_device_index():
+    """Get system audio capture device index based on platform."""
+    platform = get_platform()
+    
+    if platform == "mac":
+        # On macOS, look for BlackHole
+        return _get_blackhole_device_index()
+    elif platform == "linux":
+        # On Linux, look for common loopback devices
+        return _get_linux_loopback_device_index()
+    elif platform == "windows":
+        # On Windows, look for stereo mix or similar
+        return _get_windows_loopback_device_index()
+    return None
+
+
+def _get_blackhole_device_index():
+    """Find BlackHole audio device on macOS."""
+    p = pyaudio.PyAudio()
+    try:
+        for i in range(p.get_device_count()):
+            device_info = p.get_device_info_by_index(i)
+            device_name = str(device_info.get("name", "")).lower()
+            if "blackhole" in device_name:
+                log.debug("Found BlackHole audio device")
+                return i
+        return None
+    finally:
+        p.terminate()
+
+
+def _get_linux_loopback_device_index():
+    """Find system audio loopback device on Linux."""
+    p = pyaudio.PyAudio()
+    try:
+        for i in range(p.get_device_count()):
+            device_info = p.get_device_info_by_index(i)
+            device_name = str(device_info.get("name", "")).lower()
+            if any(name in device_name for name in ["pulse", "monitor", "loopback"]):
+                return i
+        return None
+    finally:
+        p.terminate()
+
+
+def _get_windows_loopback_device_index():
+    """Find system audio loopback device on Windows."""
+    p = pyaudio.PyAudio()
+    try:
+        for i in range(p.get_device_count()):
+            device_info = p.get_device_info_by_index(i)
+            device_name = str(device_info.get("name", "")).lower()
+            if any(name in device_name for name in ["stereo mix", "wave out", "cable", "virtual"]):
+                return i
+        return None
+    finally:
+        p.terminate()
+
+
+def print_system_audio_setup_instructions():
+    """Print platform-specific instructions for system audio capture setup."""
+    platform = get_platform()
+    
+    if platform == "mac":
+        log.warning("To capture system audio on macOS:")
+        log.info("1. Install BlackHole: brew install blackhole-2ch")
+        log.info("2. Set up a Multi-Output Device in Audio MIDI Setup")
+        log.info("3. Select BlackHole as your system output")
+        log.info("\nFor detailed instructions, visit: https://github.com/ExistentialAudio/BlackHole")
+    elif platform == "linux":
+        log.warning("To capture system audio on Linux:")
+        log.info("Option 1 - Using PulseAudio:")
+        log.info("1. Install PulseAudio (if not already installed)")
+        log.info("2. Load module-loopback:")
+        log.info("   pactl load-module module-loopback latency_msec=1")
+        log.info("3. Use pavucontrol to manage audio routing")
+        log.info("\nOption 2 - Using JACK:")
+        log.info("1. Install JACK: sudo apt-get install jackd2")
+        log.info("2. Install QjackCtl for GUI control")
+        log.info("3. Configure JACK to capture system audio")
+    elif platform == "windows":
+        log.warning("To capture system audio on Windows:")
+        log.info("Option 1 - Using Stereo Mix (if available):")
+        log.info("1. Right-click the speaker icon in the system tray")
+        log.info("2. Open Sound settings > Recording")
+        log.info("3. Right-click in the device list and enable 'Show Disabled Devices'")
+        log.info("4. Enable 'Stereo Mix' if available")
+        log.info("\nOption 2 - Using VB-Cable (recommended):")
+        log.info("1. Download VB-Cable from: https://vb-audio.com/Cable/")
+        log.info("2. Install and restart your computer")
+        log.info("3. Set CABLE Output as your default playback device")
+        log.info("4. Select CABLE Input as your recording device in WhisperBox")
+
+
+def get_system_audio_devices():
+    """Get list of potential system audio capture devices."""
+    p = pyaudio.PyAudio()
+    system_devices = []
+    
+    try:
+        for i in range(p.get_device_count()):
+            try:
+                device_info = p.get_device_info_by_index(i)
+                device_name = str(device_info.get("name", "")).lower()
+                max_inputs = int(device_info.get("maxInputChannels", 0))
+                
+                # Skip devices with no input channels
+                if max_inputs == 0:
+                    continue
+                    
+                # Check if device is a potential system audio capture device
+                platform = get_platform()
+                is_system_device = False
+                
+                if platform == "mac" and "blackhole" in device_name:
+                    is_system_device = True
+                elif platform == "linux" and any(name in device_name for name in ["pulse", "monitor", "loopback"]):
+                    is_system_device = True
+                elif platform == "windows" and any(name in device_name for name in ["stereo mix", "wave out", "cable", "virtual"]):
+                    is_system_device = True
+                    
+                if is_system_device:
+                    system_devices.append({
+                        'name': device_info.get("name"),
+                        'index': i,
+                        'channels': max_inputs,
+                        'sample_rate': int(device_info.get("defaultSampleRate", 44100))
+                    })
+                    
+            except Exception as e:
+                log.debug(f"Error processing device {i}: {e}")
+                continue
+                
+        return system_devices
+    finally:
+        p.terminate()
+
+
+def select_system_audio_device():
+    """Interactive system audio device selection."""
+    devices = get_system_audio_devices()
+    platform = get_platform()
+    
+    if not devices:
+        log.warning("No system audio capture devices found!")
+        print_system_audio_setup_instructions()
+        return None
+        
+    # Create device choices with formatted strings
+    choices = []
+    for d in devices:
+        choice_str = (
+            f"{d['name']}\n"
+            f"   Channels: {d['channels']}, Sample Rate: {d['sample_rate']}Hz"
+        )
+        choices.append(choice_str)
+        
+    # Add option to disable system audio capture
+    choices.append("Disable system audio capture")
+    
+    # Show device selection prompt
+    prompt = ListPrompt(
+        message="Select system audio capture device (or disable):",
+        choices=choices
+    )
+    selection = prompt.execute()
+    
+    if selection == "Disable system audio capture":
+        config._config["audio"]["capture_system_audio"] = False
+        config.save()
+        log.info("System audio capture disabled")
+        return None
+        
+    # Get the selected device (extract name before the newline)
+    selected_name = selection.split("\n")[0]
+    selected_device = next(d for d in devices if d["name"] == selected_name)
+    
+    # Update config
+    try:
+        if "audio" not in config._config:
+            config._config["audio"] = {}
+        if "devices" not in config._config["audio"]:
+            config._config["audio"]["devices"] = {}
+            
+        config._config["audio"]["devices"]["system"] = {
+            "name": selected_device["name"],
+            "index": selected_device["index"],
+            "channels": selected_device["channels"],
+            "sample_rate": selected_device["sample_rate"]
+        }
+        config._config["audio"]["capture_system_audio"] = True
+        config.save()
+        
+        log.success(
+            f"Updated config: Using {selected_device['name']} for system audio capture\n"
+            f"Settings - Channels: {selected_device['channels']}, "
+            f"Sample Rate: {selected_device['sample_rate']}Hz"
+        )
+        
+        return selected_device["index"]
+        
+    except Exception as e:
+        log.error(f"Error updating config: {e}")
+        log.debug(traceback.format_exc())
+        return None
 
 
 class AudioRecorder:
@@ -28,18 +248,8 @@ class AudioRecorder:
 
     def _get_loopback_device_index(self):
         """Find the system audio loopback device."""
-        for i in range(self.p.get_device_count()):
-            device_info = self.p.get_device_info_by_index(i)
-            device_name = str(device_info.get("name", "")).lower()
-            if "blackhole" in device_name:
-                log.debug("Found BlackHole audio device")
-                return i
-            elif any(
-                name in device_name
-                for name in ["stereo mix", "wave out", "loopback", "cable"]
-            ):
-                return i
-        return None
+        # Use the new platform-specific detection
+        return get_system_audio_device_index()
 
     def _setup_audio_stream(self):
         """Setup audio stream with appropriate input device."""
